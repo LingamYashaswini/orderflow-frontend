@@ -20,6 +20,12 @@ function App() {
   const [loginError, setLoginError] = useState('');
 
   useEffect(() => { fetchDistributors(); }, []);
+  useEffect(() => {
+  const ping = setInterval(() => {
+    fetch('https://orderflow-backend-5wcq.onrender.com/');
+  }, 600000);
+  return () => clearInterval(ping);
+}, []);
 
   useEffect(() => {
     if (selectedDist) fetchOrders(selectedDist._id);
