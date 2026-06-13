@@ -43,7 +43,7 @@ function App() {
 
   const fetchOrders = async (id) => {
     const res = await getOrdersByDistributor(id);
-    const sorted = res.data.sort((a, b) => new Date(b.date) - new Date(a.date));
+   const sorted = res.data.sort((a, b) => new Date(a.date) - new Date(b.date));
     setOrders(sorted);
   };
 
@@ -192,10 +192,9 @@ function App() {
     win.onload = () => { win.print(); };
   };
 
-  const filteredDists = distributors.filter(d =>
-    d.name.toLowerCase().startsWith(search.toLowerCase()) || search === ''
-  );
-
+const filteredDists = distributors
+    .filter(d => d.name.toLowerCase().startsWith(search.toLowerCase()) || search === '')
+    .sort((a, b) => a.name.localeCompare(b.name));
   if (!loggedIn) {
     return (
       <div style={{ minHeight: '100vh', background: '#f7f5f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -326,7 +325,7 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {[...allOrders].sort((a,b) => new Date(b.date) - new Date(a.date)).map(o => (
+                  {[...allOrders].sort((a,b) => new Date(a.date) - new Date(b.date)).map(o => (
                     <tr key={o._id} style={{ borderBottom: '1px solid #eee' }}>
                       <td style={{ padding: 10 }}>{formatDate(o.date)}</td>
                       <td style={{ padding: 10 }}>{o.distributorId?.name || '-'}</td>
