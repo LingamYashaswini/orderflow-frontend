@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
-  getDistributors, createDistributor, updateDistributor, deleteDistributor,
-  getOrdersByDistributor, createOrder, updateOrder, deleteOrder,
-  getOrders, login
+  getDistributors,
+  createDistributor,
+  updateDistributor,
+  deleteDistributor,
+  getOrdersByDistributor,
+  createOrder,
+  updateOrder,
+  deleteOrder,
+  getOrders
 } from './api';
 import './App.css';
 
