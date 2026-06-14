@@ -324,7 +324,7 @@ function App() {
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: 28 }}>
+       <div style={{ flex: 1, overflowY: 'auto', padding: '28px 28px 28px 28px' }}>
 
           {/* Dashboard */}
           {view === 'dashboard' && (
@@ -332,7 +332,7 @@ function App() {
 
               {/* Fixed: Stats */}
               <div style={{ flexShrink: 0 }}>
-                <h2>Dashboard</h2>
+                <h2 style={{ margin: '0 0 24px 0', paddingTop: 4 }}>Dashboard</h2>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
                   <div style={{ background: '#f0f0f0', borderRadius: 10, padding: 16 }}>
                     <div style={{ fontSize: 12, color: '#666' }}>Distributors</div>
