@@ -261,13 +261,19 @@ function App() {
 
   return (
     <div style={{ fontFamily: 'sans-serif', display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+
       {/* Topbar */}
-      <div style={{ background: '#73c2fb', padding: '0 24px', height: 52, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-        <span style={{ color: '#fff', fontSize: 20, fontWeight: 700, cursor: 'pointer' }}
+      <div style={{ background: '#73c2fb', padding: '0 24px', height: 52, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+        <span style={{ color: '#fff', fontSize: 20, fontWeight: 700, cursor: 'pointer', minWidth: 120 }}
           onClick={() => { setView('dashboard'); setSelectedDist(null); }}>
           OrderFlow
         </span>
-        <div style={{ marginLeft: 'auto' }}>
+        <div style={{ flex: 1, textAlign: 'center' }}>
+          <span style={{ color: '#fff', fontSize: 14, fontWeight: 600, letterSpacing: '0.3px' }}>
+            SAI KRUPA MEDICAL AND GENERAL STORE
+          </span>
+        </div>
+        <div style={{ minWidth: 120, display: 'flex', justifyContent: 'flex-end' }}>
           <button onClick={() => setLoggedIn(false)}
             style={{ background: 'rgba(255,255,255,0.25)', color: '#fff', border: '1px solid rgba(255,255,255,0.4)', padding: '5px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>
             Logout
@@ -276,70 +282,90 @@ function App() {
       </div>
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
         {/* Sidebar */}
-        <div style={{ width: 240, minWidth: 240, background: '#f9f9f9', borderRight: '1px solid #eee', padding: 16, overflowY: 'auto', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <div style={{ fontSize: 11, color: '#999', textTransform: 'uppercase', fontWeight: 600 }}>Distributors</div>
-            <button onClick={() => { setModal('dist'); setForm({}); setEditTarget(null); setDupWarning(''); }}
-              style={{ background: '#73c2fb', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
-              + Add
-            </button>
-          </div>
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search distributors..."
-            style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, marginBottom: 10, boxSizing: 'border-box' }}
-          />
-          {filteredDists.length === 0 && (
-            <div style={{ fontSize: 13, color: '#999', padding: '8px 0' }}>No distributors found</div>
-          )}
-          {filteredDists.map(d => (
-            <div key={d._id} onClick={() => { setSelectedDist(d); setView('distributor'); fetchOrders(d._id); }}
-              style={{ padding: '8px 10px', borderRadius: 8, cursor: 'pointer', marginBottom: 4,
-                background: selectedDist?._id === d._id ? '#E8F4FD' : 'transparent',
-                borderLeft: selectedDist?._id === d._id ? '3px solid #73c2fb' : '3px solid transparent' }}>
-              <div style={{ fontWeight: 500, fontSize: 14 }}>{d.name}</div>
-              <div style={{ fontSize: 12, color: '#999' }}>{d.phone}</div>
+        <div style={{ width: 240, minWidth: 240, background: '#D6EAF8', borderRight: '1px solid #AED6F1', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+
+          {/* Fixed: Add button + Search */}
+          <div style={{ padding: '16px 16px 8px', flexShrink: 0, background: '#D6EAF8' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div style={{ fontSize: 11, color: '#555', textTransform: 'uppercase', fontWeight: 600 }}>Distributors</div>
+              <button onClick={() => { setModal('dist'); setForm({}); setEditTarget(null); setDupWarning(''); }}
+                style={{ background: '#73c2fb', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
+                + Add
+              </button>
             </div>
-          ))}
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search distributors..."
+              style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #AED6F1', fontSize: 13, boxSizing: 'border-box', background: '#fff' }}
+            />
+          </div>
+
+          {/* Scrollable distributor list */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 16px' }}>
+            {filteredDists.length === 0 && (
+              <div style={{ fontSize: 13, color: '#999', padding: '8px 0' }}>No distributors found</div>
+            )}
+            {filteredDists.map(d => (
+              <div key={d._id} onClick={() => { setSelectedDist(d); setView('distributor'); fetchOrders(d._id); }}
+                style={{ padding: '8px 10px', borderRadius: 8, cursor: 'pointer', marginBottom: 4,
+                  background: selectedDist?._id === d._id ? '#AED6F1' : 'transparent',
+                  borderLeft: selectedDist?._id === d._id ? '3px solid #73c2fb' : '3px solid transparent' }}>
+                <div style={{ fontWeight: 500, fontSize: 14 }}>{d.name}</div>
+                <div style={{ fontSize: 12, color: '#555' }}>{d.phone}</div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: 28 }}>
+
+          {/* Dashboard */}
           {view === 'dashboard' && (
-            <div>
-              <h2>Dashboard</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
-                <div style={{ background: '#f0f0f0', borderRadius: 10, padding: 16 }}>
-                  <div style={{ fontSize: 12, color: '#666' }}>Distributors</div>
-                  <div style={{ fontSize: 24, fontWeight: 700 }}>{distributors.length}</div>
-                </div>
-                <div onClick={() => setView('allOrders')}
-                  style={{ background: '#f0f0f0', borderRadius: 10, padding: 16, cursor: 'pointer' }}>
-                  <div style={{ fontSize: 12, color: '#666' }}>Total Orders</div>
-                  <div style={{ fontSize: 24, fontWeight: 700 }}>{allOrders.length}</div>
-                  <div style={{ fontSize: 11, color: '#73c2fb', marginTop: 4 }}>Click to view all →</div>
-                </div>
-                <div style={{ background: '#f0f0f0', borderRadius: 10, padding: 16 }}>
-                  <div style={{ fontSize: 12, color: '#666' }}>Total Billing</div>
-                  <div style={{ fontSize: 24, fontWeight: 700 }}>Rs.{distributors.reduce((s,d) => s + totalFor(d._id), 0).toLocaleString('en-IN')}</div>
-                </div>
-              </div>
-              <h3>All Distributors</h3>
-              {[...distributors].sort((a,b) => a.name.localeCompare(b.name)).map(d => (
-                <div key={d._id} onClick={() => { setSelectedDist(d); setView('distributor'); fetchOrders(d._id); }}
-                  style={{ padding: 14, border: '2px solid #97c1E6', borderRadius: 10, marginBottom: 10, cursor: 'pointer' }}>
-                  <div style={{ fontWeight: 600 }}>{d.name}</div>
-                  <div style={{ fontSize: 13, color: '#666' }}>{d.phone} · {d.address}</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#73c2fb', marginTop: 4 }}>
-                    Rs.{totalFor(d._id).toLocaleString('en-IN')}
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+
+              {/* Fixed: Stats */}
+              <div style={{ flexShrink: 0 }}>
+                <h2>Dashboard</h2>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
+                  <div style={{ background: '#f0f0f0', borderRadius: 10, padding: 16 }}>
+                    <div style={{ fontSize: 12, color: '#666' }}>Distributors</div>
+                    <div style={{ fontSize: 24, fontWeight: 700 }}>{distributors.length}</div>
+                  </div>
+                  <div onClick={() => setView('allOrders')}
+                    style={{ background: '#f0f0f0', borderRadius: 10, padding: 16, cursor: 'pointer' }}>
+                    <div style={{ fontSize: 12, color: '#666' }}>Total Orders</div>
+                    <div style={{ fontSize: 24, fontWeight: 700 }}>{allOrders.length}</div>
+                    <div style={{ fontSize: 11, color: '#73c2fb', marginTop: 4 }}>Click to view all →</div>
+                  </div>
+                  <div style={{ background: '#f0f0f0', borderRadius: 10, padding: 16 }}>
+                    <div style={{ fontSize: 12, color: '#666' }}>Total Billing</div>
+                    <div style={{ fontSize: 24, fontWeight: 700 }}>Rs.{distributors.reduce((s,d) => s + totalFor(d._id), 0).toLocaleString('en-IN')}</div>
                   </div>
                 </div>
-              ))}
+                <h3>All Distributors</h3>
+              </div>
+
+              {/* Scrollable distributor cards */}
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                {[...distributors].sort((a,b) => a.name.localeCompare(b.name)).map(d => (
+                  <div key={d._id} onClick={() => { setSelectedDist(d); setView('distributor'); fetchOrders(d._id); }}
+                    style={{ padding: 14, border: '2px solid #97c1E6', borderRadius: 10, marginBottom: 10, cursor: 'pointer' }}>
+                    <div style={{ fontWeight: 600 }}>{d.name}</div>
+                    <div style={{ fontSize: 13, color: '#666' }}>{d.phone} · {d.address}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#73c2fb', marginTop: 4 }}>
+                      Rs.{totalFor(d._id).toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
+          {/* All Orders */}
           {view === 'allOrders' && (
             <div>
               <button onClick={() => setView('dashboard')}
@@ -384,6 +410,7 @@ function App() {
             </div>
           )}
 
+          {/* Distributor Detail */}
           {view === 'distributor' && selectedDist && (
             <div>
               <button onClick={() => { setView('dashboard'); setSelectedDist(null); }}
