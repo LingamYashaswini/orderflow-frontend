@@ -149,7 +149,8 @@ function App() {
       <style>body{font-family:sans-serif;padding:32px;color:#1a1a1a}h1{color:#73c2fb}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#73c2fb;color:#fff;padding:10px;text-align:left}td{padding:8px;border:1px solid #ddd}.total{text-align:right;margin-top:16px;font-size:18px;font-weight:700;color:#73c2fb}.meta{color:#666;margin-bottom:24px;font-size:14px}</style>
       </head><body>
         <h1>OrderFlow</h1>
-        <h2>${selectedDist.name}</h2>
+        <h2>SAI KRUPA MEDICAL AND GENERAL STORE</h2>
+        <h3>${selectedDist.name}</h3>
         <div class="meta">Ph: ${selectedDist.phone} | Addr: ${selectedDist.address}</div>
         <table>
           <thead><tr><th>Date</th><th>Invoice No.</th><th>Amount</th></tr></thead>
@@ -180,7 +181,8 @@ function App() {
       <style>body{font-family:sans-serif;padding:32px;color:#1a1a1a}h1{color:#73c2fb}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#73c2fb;color:#fff;padding:10px;text-align:left}td{padding:8px;border:1px solid #ddd}.total{text-align:right;margin-top:16px;font-size:18px;font-weight:700;color:#73c2fb}</style>
       </head><body>
         <h1>OrderFlow</h1>
-        <h2>All Orders</h2>
+        <h2>SAI KRUPA MEDICAL AND GENERAL STORE</h2>
+        <h3>All Orders</h3>
         <table>
           <thead><tr><th>Date</th><th>Distributor</th><th>Invoice No.</th><th>Amount</th></tr></thead>
           <tbody>${rows}</tbody>
@@ -210,7 +212,8 @@ function App() {
       <style>body{font-family:sans-serif;padding:32px;color:#1a1a1a}h1{color:#73c2fb}.row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee}.label{color:#666;font-size:14px}.value{font-weight:600}</style>
       </head><body>
         <h1>OrderFlow</h1>
-        <h2>${selectedDist.name}</h2>
+        <h2>SAI KRUPA MEDICAL AND GENERAL STORE</h2>
+        <h3>${selectedDist.name}</h3>
         <div class="row"><span class="label">Date</span><span class="value">${formatDate(o.date)}</span></div>
         <div class="row"><span class="label">Invoice No.</span><span class="value">${o.invoiceNumber}</span></div>
         <div class="row"><span class="label">Amount</span><span class="value">Rs.${Number(o.amount).toLocaleString('en-IN')}</span></div>
