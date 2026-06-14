@@ -1,16 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
-  getDistributors,
-  createDistributor,
-  updateDistributor,
-  deleteDistributor,
-  getOrdersByDistributor,
-  createOrder,
-  updateOrder,
-  deleteOrder,
+  getDistributors, createDistributor, updateDistributor, deleteDistributor,
+  getOrdersByDistributor, createOrder, updateOrder, deleteOrder,
   getOrders
 } from './api';
 import './App.css';
+
+const PRESET_USER = 'NAGESH';
+const PRESET_PASS = 'RUDRA@4473';
 
 function App() {
   const [distributors, setDistributors] = useState([]);
@@ -26,15 +23,8 @@ function App() {
   const [loginError, setLoginError] = useState('');
   const [search, setSearch] = useState('');
   const [dupWarning, setDupWarning] = useState('');
-  const [isSetup, setIsSetup] = useState(false);
-  const [setupForm, setSetupForm] = useState({ username: '', password: '', confirm: '' });
-  const [setupError, setSetupError] = useState('');
 
-  useEffect(() => {
-    fetchDistributors();
-    const hasCredentials = localStorage.getItem('of_user');
-    if (!hasCredentials) setIsSetup(true);
-  }, []);
+  useEffect(() => { fetchDistributors(); }, []);
 
   useEffect(() => {
     const ping = setInterval(() => {
@@ -60,27 +50,12 @@ function App() {
     setOrders(sorted);
   };
 
-  const handleSetup = () => {
-    setSetupError('');
-    if (!setupForm.username.trim()) { setSetupError('Username is required'); return; }
-    if (setupForm.password.length < 4) { setSetupError('Password must be at least 4 characters'); return; }
-    if (setupForm.password !== setupForm.confirm) { setSetupError('Passwords do not match'); return; }
-    localStorage.setItem('of_user', JSON.stringify({ username: setupForm.username.trim(), password: setupForm.password }));
-    setIsSetup(false);
-    alert('Account created! Please sign in.');
-  };
-
-  const handleLogin = async () => {
-    try {
-      const stored = JSON.parse(localStorage.getItem('of_user') || '{}');
-      if (loginForm.username === stored.username && loginForm.password === stored.password) {
-        setLoggedIn(true);
-        setLoginError('');
-      } else {
-        setLoginError('Invalid username or password');
-      }
-    } catch (err) {
-      setLoginError('Something went wrong. Please try again.');
+  const handleLogin = () => {
+    if (loginForm.username === PRESET_USER && loginForm.password === PRESET_PASS) {
+      setLoggedIn(true);
+      setLoginError('');
+    } else {
+      setLoginError('Invalid username or password');
     }
   };
 
@@ -251,47 +226,6 @@ function App() {
     .filter(d => d.name.toLowerCase().startsWith(search.toLowerCase()) || search === '')
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  // Setup screen — first time use
-  if (isSetup) {
-    return (
-      <div style={{ minHeight: '100vh', background: '#f7f5f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ background: '#fff', borderRadius: 16, padding: 36, width: 380, boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
-          <h2 style={{ color: '#73c2fb', marginTop: 0, marginBottom: 4 }}>Welcome to OrderFlow</h2>
-          <p style={{ color: '#999', fontSize: 14, marginBottom: 24 }}>Create your account to get started</p>
-          {setupError && (
-            <div style={{ background: '#FCEBEB', color: '#A32D2D', padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 14 }}>
-              {setupError}
-            </div>
-          )}
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 13, color: '#666', display: 'block', marginBottom: 4 }}>Choose Username</label>
-            <input value={setupForm.username} onChange={e => setSetupForm({...setupForm, username: e.target.value})}
-              placeholder="e.g. Nagesh"
-              style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }}/>
-          </div>
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 13, color: '#666', display: 'block', marginBottom: 4 }}>Choose Password</label>
-            <input type="password" value={setupForm.password} onChange={e => setSetupForm({...setupForm, password: e.target.value})}
-              placeholder="At least 4 characters"
-              style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }}/>
-          </div>
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ fontSize: 13, color: '#666', display: 'block', marginBottom: 4 }}>Confirm Password</label>
-            <input type="password" value={setupForm.confirm} onChange={e => setSetupForm({...setupForm, confirm: e.target.value})}
-              placeholder="Repeat your password"
-              onKeyDown={e => e.key === 'Enter' && handleSetup()}
-              style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }}/>
-          </div>
-          <button onClick={handleSetup}
-            style={{ width: '100%', padding: 10, background: '#73c2fb', color: '#fff', border: 'none', borderRadius: 8, fontSize: 15, cursor: 'pointer', fontWeight: 600 }}>
-            Create Account
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Login screen
   if (!loggedIn) {
     return (
       <div style={{ minHeight: '100vh', background: '#f7f5f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -320,15 +254,6 @@ function App() {
             style={{ width: '100%', padding: 10, background: '#73c2fb', color: '#fff', border: 'none', borderRadius: 8, fontSize: 15, cursor: 'pointer', fontWeight: 600 }}>
             Sign In
           </button>
-          <div style={{ textAlign: 'center', marginTop: 16 }}>
-            <span style={{ fontSize: 13, color: '#999' }}>Forgot credentials? </span>
-            <span onClick={() => {
-              if (window.confirm('This will reset your account. Are you sure?')) {
-                localStorage.removeItem('of_user');
-                setIsSetup(true);
-              }
-            }} style={{ fontSize: 13, color: '#73c2fb', cursor: 'pointer' }}>Reset account</span>
-          </div>
         </div>
       </div>
     );
@@ -353,7 +278,6 @@ function App() {
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* Sidebar */}
         <div style={{ width: 240, minWidth: 240, background: '#f9f9f9', borderRight: '1px solid #eee', padding: 16, overflowY: 'auto', flexShrink: 0 }}>
-          {/* Header row with title and Add button */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <div style={{ fontSize: 11, color: '#999', textTransform: 'uppercase', fontWeight: 600 }}>Distributors</div>
             <button onClick={() => { setModal('dist'); setForm({}); setEditTarget(null); setDupWarning(''); }}
@@ -361,7 +285,6 @@ function App() {
               + Add
             </button>
           </div>
-          {/* Search */}
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
