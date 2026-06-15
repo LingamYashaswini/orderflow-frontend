@@ -23,6 +23,7 @@ function App() {
   const [loginError, setLoginError] = useState('');
   const [search, setSearch] = useState('');
   const [dupWarning, setDupWarning] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => { fetchDistributors(); }, []);
 
@@ -37,11 +38,18 @@ function App() {
     if (selectedDist) fetchOrders(selectedDist._id);
   }, [selectedDist]);
 
-  const fetchDistributors = async () => {
-    const res = await getDistributors();
-    setDistributors(res.data);
-    const allOrdersRes = await getOrders();
-    setAllOrders(allOrdersRes.data);
+ const fetchDistributors = async () => {
+    try {
+      setLoading(true);
+      const res = await getDistributors();
+      setDistributors(res.data);
+      const allOrdersRes = await getOrders();
+      setAllOrders(allOrdersRes.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchOrders = async (id) => {
@@ -228,7 +236,17 @@ function App() {
   const filteredDists = distributors
     .filter(d => d.name.toLowerCase().startsWith(search.toLowerCase()) || search === '')
     .sort((a, b) => a.name.localeCompare(b.name));
-
+if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#f7f5f0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: '#73c2fb' }}>OrderFlow</div>
+        <div style={{ fontSize: 14, color: '#999' }}>SAI KRUPA MEDICAL AND GENERAL STORES</div>
+        <div style={{ marginTop: 12, width: 40, height: 40, border: '4px solid #D6EAF8', borderTop: '4px solid #73c2fb', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+        <div style={{ fontSize: 13, color: '#aaa', marginTop: 8 }}>Loading your data...</div>
+      </div>
+    );
+  }
   if (!loggedIn) {
     return (
       <div style={{ minHeight: '100vh', background: '#f7f5f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
