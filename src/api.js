@@ -18,3 +18,6 @@ export const createOrder = (data) => API.post('/orders', data);
 export const updateOrder = (id, data) => API.put(`/orders/${id}`, data);
 export const deleteOrder = (id) => API.delete(`/orders/${id}`);
 export const login = (data) => API.post('/login', data);
+export const getPayments = () => API.get('/payments');
+export const createPayment = (data) => API.post('/payments', data);
+export const deletePayment = (id) => API.delete(`/payments/${id}`);

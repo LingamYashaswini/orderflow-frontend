@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   getDistributors, createDistributor, updateDistributor, deleteDistributor,
   getOrdersByDistributor, createOrder, updateOrder, deleteOrder,
-  getOrders
+  getOrders, getPayments, createPayment
 } from './api';
 import './App.css';
 
@@ -14,6 +14,7 @@ function App() {
   const [selectedDist, setSelectedDist] = useState(null);
   const [orders, setOrders] = useState([]);
   const [allOrders, setAllOrders] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [view, setView] = useState('dashboard');
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({});
@@ -38,13 +39,15 @@ function App() {
     if (selectedDist) fetchOrders(selectedDist._id);
   }, [selectedDist]);
 
- const fetchDistributors = async () => {
+  const fetchDistributors = async () => {
     try {
       setLoading(true);
       const res = await getDistributors();
       setDistributors(res.data);
       const allOrdersRes = await getOrders();
       setAllOrders(allOrdersRes.data);
+      const paymentsRes = await getPayments();
+      setPayments(paymentsRes.data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -117,6 +120,17 @@ function App() {
     }
   };
 
+  const handleSavePayment = async () => {
+    if (!form.distributorId || !form.date || !form.amount) {
+      alert('Please fill all fields');
+      return;
+    }
+    await createPayment({ distributorId: form.distributorId, date: form.date, amount: form.amount });
+    setModal(null); setForm({});
+    const paymentsRes = await getPayments();
+    setPayments(paymentsRes.data);
+  };
+
   const openEditDist = (d) => {
     setEditTarget(d);
     setForm({ name: d.name, phone: d.phone, address: d.address });
@@ -134,6 +148,13 @@ function App() {
     return distId === id;
   }).reduce((s,o) => s + o.amount, 0);
 
+  const totalPaymentsFor = (id) => payments.filter(p => {
+    const distId = p.distributorId?._id || p.distributorId;
+    return distId === id;
+  }).reduce((s,p) => s + p.amount, 0);
+
+  const totalAllPayments = payments.reduce((s,p) => s + Number(p.amount), 0);
+
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
     const d = new Date(dateStr);
@@ -147,14 +168,14 @@ function App() {
     const totalAmount = orders.reduce((s,o) => s + Number(o.amount), 0);
     const rows = orders.map(o =>
       `<tr>
-        <td style="padding:8px;border:1px solid #ddd">${formatDate(o.date)}</td>
-        <td style="padding:8px;border:1px solid #ddd">${o.invoiceNumber}</td>
-        <td style="padding:8px;border:1px solid #ddd">Rs.${Number(o.amount).toLocaleString('en-IN')}</td>
+        <td style="padding:8px;white-space:nowrap">${formatDate(o.date)}</td>
+        <td style="padding:8px">${o.invoiceNumber}</td>
+        <td style="padding:8px">Rs.${Number(o.amount).toLocaleString('en-IN')}</td>
       </tr>`
     ).join('');
     const html = `
       <html><head><meta charset="UTF-8"><title>OrderFlow - ${selectedDist.name}</title>
-      <style>body{font-family:sans-serif;padding:32px;color:#1a1a1a}h1{color:#73c2fb}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#73c2fb;color:#fff;padding:10px;text-align:left}td{padding:8px;border:1px solid #ddd}.total{text-align:right;margin-top:16px;font-size:18px;font-weight:700;color:#73c2fb}.meta{color:#666;margin-bottom:24px;font-size:14px}</style>
+      <style>body{font-family:sans-serif;padding:32px;color:#1a1a1a}h1{font-weight:600;font-size:20px}h2{font-weight:500;font-size:16px;color:#333}h3{font-weight:500;font-size:15px;color:#444}table{width:100%;border-collapse:collapse;margin-top:16px}th{padding:10px;text-align:left;border-bottom:2px solid #ccc;font-weight:600}td{border-bottom:1px solid #eee}.total{text-align:right;margin-top:16px;font-size:16px;font-weight:600}.meta{color:#666;margin-bottom:24px;font-size:14px}</style>
       </head><body>
         <h1>OrderFlow</h1>
         <h2>SAI KRUPA MEDICAL AND GENERAL STORES</h2>
@@ -177,16 +198,16 @@ function App() {
     const sorted = [...allOrders].sort((a,b) => new Date(a.date) - new Date(b.date));
     const rows = sorted.map(o =>
       `<tr>
-        <td style="padding:8px;border:1px solid #ddd">${formatDate(o.date)}</td>
-        <td style="padding:8px;border:1px solid #ddd">${o.distributorId?.name || '-'}</td>
-        <td style="padding:8px;border:1px solid #ddd">${o.invoiceNumber}</td>
-        <td style="padding:8px;border:1px solid #ddd">Rs.${Number(o.amount).toLocaleString('en-IN')}</td>
+        <td style="padding:8px;white-space:nowrap">${formatDate(o.date)}</td>
+        <td style="padding:8px">${o.distributorId?.name || '-'}</td>
+        <td style="padding:8px">${o.invoiceNumber}</td>
+        <td style="padding:8px">Rs.${Number(o.amount).toLocaleString('en-IN')}</td>
       </tr>`
     ).join('');
     const total = allOrders.reduce((s,o) => s + Number(o.amount), 0);
     const html = `
       <html><head><meta charset="UTF-8"><title>All Orders - OrderFlow</title>
-      <style>body{font-family:sans-serif;padding:32px;color:#1a1a1a}h1{color:#73c2fb}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#73c2fb;color:#fff;padding:10px;text-align:left}td{padding:8px;border:1px solid #ddd}.total{text-align:right;margin-top:16px;font-size:18px;font-weight:700;color:#73c2fb}</style>
+      <style>body{font-family:sans-serif;padding:32px;color:#1a1a1a}h1{font-weight:600;font-size:20px}h2{font-weight:500;font-size:16px;color:#333}h3{font-weight:500;font-size:15px;color:#444}table{width:100%;border-collapse:collapse;margin-top:16px}th{padding:10px;text-align:left;border-bottom:2px solid #ccc;font-weight:600}td{border-bottom:1px solid #eee}.total{text-align:right;margin-top:16px;font-size:16px;font-weight:600}</style>
       </head><body>
         <h1>OrderFlow</h1>
         <h2>SAI KRUPA MEDICAL AND GENERAL STORES</h2>
@@ -217,7 +238,7 @@ function App() {
   const shareOrderPDF = (o) => {
     const html = `
       <html><head><meta charset="UTF-8"><title>Order - ${o.invoiceNumber}</title>
-      <style>body{font-family:sans-serif;padding:32px;color:#1a1a1a}h1{color:#73c2fb}.row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee}.label{color:#666;font-size:14px}.value{font-weight:600}</style>
+      <style>body{font-family:sans-serif;padding:32px;color:#1a1a1a}h1{font-weight:600;font-size:20px}h2{font-weight:500;font-size:16px;color:#333}.row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee}.label{color:#666;font-size:14px}.value{font-weight:600}</style>
       </head><body>
         <h1>OrderFlow</h1>
         <h2>SAI KRUPA MEDICAL AND GENERAL STORES</h2>
@@ -236,7 +257,8 @@ function App() {
   const filteredDists = distributors
     .filter(d => d.name.toLowerCase().startsWith(search.toLowerCase()) || search === '')
     .sort((a, b) => a.name.localeCompare(b.name));
-if (loading) {
+
+  if (loading) {
     return (
       <div style={{ minHeight: '100vh', background: '#f7f5f0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
         <div style={{ fontSize: 24, fontWeight: 700, color: '#73c2fb' }}>OrderFlow</div>
@@ -247,6 +269,7 @@ if (loading) {
       </div>
     );
   }
+
   if (!loggedIn) {
     return (
       <div style={{ minHeight: '100vh', background: '#f7f5f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -307,7 +330,6 @@ if (loading) {
         {/* Sidebar */}
         <div style={{ width: 240, minWidth: 240, background: '#D6EAF8', borderRight: '1px solid #AED6F1', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
 
-          {/* Fixed: Add button + Search */}
           <div style={{ padding: '16px 16px 8px', flexShrink: 0, background: '#D6EAF8' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
               <div style={{ fontSize: 11, color: '#555', textTransform: 'uppercase', fontWeight: 600 }}>Distributors</div>
@@ -324,7 +346,6 @@ if (loading) {
             />
           </div>
 
-          {/* Scrollable distributor list */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 16px' }}>
             {filteredDists.length === 0 && (
               <div style={{ fontSize: 13, color: '#999', padding: '8px 0' }}>No distributors found</div>
@@ -342,16 +363,14 @@ if (loading) {
         </div>
 
         {/* Content */}
-       <div style={{ flex: 1, overflowY: 'auto', padding: '28px 28px 28px 28px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: 28 }}>
 
-          {/* Dashboard */}
           {view === 'dashboard' && (
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-              {/* Fixed: Stats */}
               <div style={{ flexShrink: 0 }}>
-              <h2 style={{ margin: '0 0 24px 0', paddingTop: 28 }}>Dashboard</h2>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
+                <h2 style={{ margin: '0 0 24px 0', paddingTop: 28 }}>Dashboard</h2>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
                   <div style={{ background: '#f0f0f0', borderRadius: 10, padding: 16 }}>
                     <div style={{ fontSize: 12, color: '#666' }}>Distributors</div>
                     <div style={{ fontSize: 24, fontWeight: 700 }}>{distributors.length}</div>
@@ -362,6 +381,12 @@ if (loading) {
                     <div style={{ fontSize: 24, fontWeight: 700 }}>{allOrders.length}</div>
                     <div style={{ fontSize: 11, color: '#73c2fb', marginTop: 4 }}>Click to view all →</div>
                   </div>
+                  <div onClick={() => { setModal('payment'); setForm({}); }}
+                    style={{ background: '#f0f0f0', borderRadius: 10, padding: 16, cursor: 'pointer' }}>
+                    <div style={{ fontSize: 12, color: '#666' }}>Distributor Payment</div>
+                    <div style={{ fontSize: 24, fontWeight: 700 }}>Rs.{totalAllPayments.toLocaleString('en-IN')}</div>
+                    <div style={{ fontSize: 11, color: '#73c2fb', marginTop: 4 }}>Click to add →</div>
+                  </div>
                   <div style={{ background: '#f0f0f0', borderRadius: 10, padding: 16 }}>
                     <div style={{ fontSize: 12, color: '#666' }}>Total Billing</div>
                     <div style={{ fontSize: 24, fontWeight: 700 }}>Rs.{distributors.reduce((s,d) => s + totalFor(d._id), 0).toLocaleString('en-IN')}</div>
@@ -370,7 +395,6 @@ if (loading) {
                 <h3>All Distributors</h3>
               </div>
 
-              {/* Scrollable distributor cards */}
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 {[...distributors].sort((a,b) => a.name.localeCompare(b.name)).map(d => (
                   <div key={d._id} onClick={() => { setSelectedDist(d); setView('distributor'); fetchOrders(d._id); }}
@@ -386,7 +410,6 @@ if (loading) {
             </div>
           )}
 
-          {/* All Orders */}
           {view === 'allOrders' && (
             <div>
               <button onClick={() => setView('dashboard')}
@@ -412,7 +435,7 @@ if (loading) {
                 <tbody>
                   {[...allOrders].sort((a,b) => new Date(a.date) - new Date(b.date)).map(o => (
                     <tr key={o._id} style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={{ padding: 10 }}>{formatDate(o.date)}</td>
+                      <td style={{ padding: 10, whiteSpace: 'nowrap' }}>{formatDate(o.date)}</td>
                       <td style={{ padding: 10 }}>{o.distributorId?.name || '-'}</td>
                       <td style={{ padding: 10 }}>{o.invoiceNumber}</td>
                       <td style={{ padding: 10, fontWeight: 600 }}>Rs.{Number(o.amount).toLocaleString('en-IN')}</td>
@@ -431,7 +454,6 @@ if (loading) {
             </div>
           )}
 
-          {/* Distributor Detail */}
           {view === 'distributor' && selectedDist && (
             <div>
               <button onClick={() => { setView('dashboard'); setSelectedDist(null); }}
@@ -524,13 +546,17 @@ if (loading) {
       {modal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
           <div style={{ background: '#fff', borderRadius: 16, padding: 28, width: 380 }}>
-            <h3 style={{ marginTop: 0 }}>{modal === 'dist' ? (editTarget ? 'Edit Distributor' : 'Add Distributor') : (editTarget ? 'Edit Order' : 'Add Order')}</h3>
+            <h3 style={{ marginTop: 0 }}>
+              {modal === 'dist' ? (editTarget ? 'Edit Distributor' : 'Add Distributor') :
+               modal === 'order' ? (editTarget ? 'Edit Order' : 'Add Order') :
+               'Add Distributor Payment'}
+            </h3>
             {dupWarning && (
               <div style={{ background: '#FAEEDA', color: '#BA7517', padding: '10px 14px', borderRadius: 8, marginBottom: 14, fontSize: 14 }}>
                 ⚠️ {dupWarning}
               </div>
             )}
-            {modal === 'dist' ? (
+            {modal === 'dist' && (
               <>
                 {['name','phone','address'].map(f => (
                   <div key={f} style={{ marginBottom: 12 }}>
@@ -540,7 +566,8 @@ if (loading) {
                   </div>
                 ))}
               </>
-            ) : (
+            )}
+            {modal === 'order' && (
               <>
                 {[{f:'date',t:'date'},{f:'invoiceNumber',t:'text'},{f:'amount',t:'number'}].map(({f,t}) => (
                   <div key={f} style={{ marginBottom: 12 }}>
@@ -551,12 +578,36 @@ if (loading) {
                 ))}
               </>
             )}
+            {modal === 'payment' && (
+              <>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ fontSize: 13, color: '#666', display: 'block', marginBottom: 4 }}>Date</label>
+                  <input type="date" value={form.date||''} onChange={e => setForm({...form, date: e.target.value})}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }}/>
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ fontSize: 13, color: '#666', display: 'block', marginBottom: 4 }}>Distributor</label>
+                  <select value={form.distributorId||''} onChange={e => setForm({...form, distributorId: e.target.value})}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }}>
+                    <option value="">Select distributor</option>
+                    {[...distributors].sort((a,b) => a.name.localeCompare(b.name)).map(d => (
+                      <option key={d._id} value={d._id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ fontSize: 13, color: '#666', display: 'block', marginBottom: 4 }}>Payment Amount (Rs.)</label>
+                  <input type="number" value={form.amount||''} onChange={e => setForm({...form, amount: e.target.value})}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }}/>
+                </div>
+              </>
+            )}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
               <button onClick={() => { setModal(null); setForm({}); setEditTarget(null); setDupWarning(''); }}
                 style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #ccc', cursor: 'pointer', background: '#fff' }}>
                 Cancel
               </button>
-              <button onClick={modal === 'dist' ? handleSaveDist : handleSaveOrder}
+              <button onClick={modal === 'dist' ? handleSaveDist : modal === 'order' ? handleSaveOrder : handleSavePayment}
                 style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#73c2fb', color: '#fff', cursor: 'pointer' }}>
                 Save
               </button>
