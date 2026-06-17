@@ -41,6 +41,7 @@ function App() {
   }, [selectedDist]);
 
   const fetchDistributors = async () => {
+    const startTime = Date.now();
     try {
       setLoading(true);
       const res = await getDistributors();
@@ -52,7 +53,11 @@ function App() {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      const elapsed = Date.now() - startTime;
+      const minDisplay = 1500;
+      const maxWait = 3000;
+      const waitTime = Math.min(Math.max(minDisplay - elapsed, 0), maxWait);
+      setTimeout(() => setLoading(false), waitTime);
     }
   };
 
@@ -743,33 +748,29 @@ function App() {
                 </div>
                 <div style={{ marginBottom: 12 }}>
                   <label style={{ fontSize: 13, color: '#666', display: 'block', marginBottom: 4 }}>Distributor</label>
-                  {!useOthers ? (
-                    <select value={form.distributorId||''} onChange={e => {
-                      if (e.target.value === '__others__') {
-                        setUseOthers(true);
-                        setForm({...form, distributorId: '', distributorName: ''});
-                      } else {
-                        setForm({...form, distributorId: e.target.value});
-                      }
-                    }}
-                      style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }}>
-                      <option value="">Select distributor</option>
-                      {[...distributors].sort((a,b) => a.name.localeCompare(b.name)).map(d => (
-                        <option key={d._id} value={d._id}>{d.name}</option>
-                      ))}
-                      <option value="__others__">Others (not in list)</option>
-                    </select>
-                  ) : (
-                    <div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {!useOthers ? (
+                      <select value={form.distributorId||''} onChange={e => setForm({...form, distributorId: e.target.value})}
+                        style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }}>
+                        <option value="">Select distributor</option>
+                        {[...distributors].sort((a,b) => a.name.localeCompare(b.name)).map(d => (
+                          <option key={d._id} value={d._id}>{d.name}</option>
+                        ))}
+                      </select>
+                    ) : (
                       <input value={form.distributorName||''} onChange={e => setForm({...form, distributorName: e.target.value})}
                         placeholder="Type distributor name"
-                        style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', marginBottom: 6 }}/>
-                      <span onClick={() => { setUseOthers(false); setForm({...form, distributorName: ''}); }}
-                        style={{ fontSize: 12, color: '#73c2fb', cursor: 'pointer' }}>
-                        ← Choose from existing list instead
-                      </span>
-                    </div>
-                  )}
+                        style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }}/>
+                    )}
+                    <button onClick={() => {
+                      const next = !useOthers;
+                      setUseOthers(next);
+                      setForm({...form, distributorId: next ? '' : form.distributorId, distributorName: next ? form.distributorName : ''});
+                    }}
+                      style={{ padding: '8px 12px', borderRadius: 8, border: useOthers ? 'none' : '1px solid #73c2fb', background: useOthers ? '#73c2fb' : '#fff', color: useOthers ? '#fff' : '#73c2fb', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      Others
+                    </button>
+                  </div>
                 </div>
                 <div style={{ marginBottom: 12 }}>
                   <label style={{ fontSize: 13, color: '#666', display: 'block', marginBottom: 4 }}>Payment Amount (Rs.)</label>
