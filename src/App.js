@@ -148,10 +148,7 @@ function App() {
     return distId === id;
   }).reduce((s,o) => s + o.amount, 0);
 
-  const totalPaymentsFor = (id) => payments.filter(p => {
-    const distId = p.distributorId?._id || p.distributorId;
-    return distId === id;
-  }).reduce((s,p) => s + p.amount, 0);
+
 
   const totalAllPayments = payments.reduce((s,p) => s + Number(p.amount), 0);
 
