@@ -21,3 +21,4 @@ export const login = (data) => API.post('/login', data);
 export const getPayments = () => API.get('/payments');
 export const createPayment = (data) => API.post('/payments', data);
 export const deletePayment = (id) => API.delete(`/payments/${id}`);
+export const updatePayment = (id, data) => API.put(`/payments/${id}`, data);

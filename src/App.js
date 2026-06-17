@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   getDistributors, createDistributor, updateDistributor, deleteDistributor,
   getOrdersByDistributor, createOrder, updateOrder, deleteOrder,
-  getOrders, getPayments, createPayment
+  getOrders, getPayments, createPayment, updatePayment, deletePayment
 } from './api';
 import './App.css';
 
@@ -25,6 +25,7 @@ function App() {
   const [search, setSearch] = useState('');
   const [dupWarning, setDupWarning] = useState('');
   const [loading, setLoading] = useState(true);
+  const [useOthers, setUseOthers] = useState(false);
 
   useEffect(() => { fetchDistributors(); }, []);
 
@@ -121,14 +122,45 @@ function App() {
   };
 
   const handleSavePayment = async () => {
-    if (!form.distributorId || !form.date || !form.amount) {
+    if (!form.date || !form.amount || (!form.distributorId && !form.distributorName)) {
       alert('Please fill all fields');
       return;
     }
-    await createPayment({ distributorId: form.distributorId, date: form.date, amount: form.amount });
-    setModal(null); setForm({});
+    const data = {
+      date: form.date,
+      amount: form.amount,
+      distributorId: useOthers ? null : form.distributorId,
+      distributorName: useOthers ? form.distributorName : null
+    };
+    if (editTarget) {
+      await updatePayment(editTarget._id, data);
+    } else {
+      await createPayment(data);
+    }
+    setModal(null); setForm({}); setEditTarget(null); setUseOthers(false);
     const paymentsRes = await getPayments();
     setPayments(paymentsRes.data);
+  };
+
+  const handleDeletePayment = async (id) => {
+    if (window.confirm('Delete this payment?')) {
+      await deletePayment(id);
+      const paymentsRes = await getPayments();
+      setPayments(paymentsRes.data);
+    }
+  };
+
+  const openEditPayment = (p) => {
+    setEditTarget(p);
+    const isOthers = !p.distributorId;
+    setUseOthers(isOthers);
+    setForm({
+      date: p.date.slice(0,10),
+      amount: p.amount,
+      distributorId: p.distributorId?._id || '',
+      distributorName: p.distributorName || ''
+    });
+    setModal('payment');
   };
 
   const openEditDist = (d) => {
@@ -148,8 +180,6 @@ function App() {
     return distId === id;
   }).reduce((s,o) => s + o.amount, 0);
 
-
-
   const totalAllPayments = payments.reduce((s,p) => s + Number(p.amount), 0);
 
   const formatDate = (dateStr) => {
@@ -160,6 +190,8 @@ function App() {
     const year = d.getFullYear();
     return `${day}-${month}-${year}`;
   };
+
+  const paymentName = (p) => p.distributorId?.name || p.distributorName || '-';
 
   const generatePDF = () => {
     const totalAmount = orders.reduce((s,o) => s + Number(o.amount), 0);
@@ -172,7 +204,7 @@ function App() {
     ).join('');
     const html = `
       <html><head><meta charset="UTF-8"><title>OrderFlow - ${selectedDist.name}</title>
-      <style>body{font-family:sans-serif;padding:32px;color:#1a1a1a}h1{font-weight:600;font-size:20px}h2{font-weight:500;font-size:16px;color:#333}h3{font-weight:500;font-size:15px;color:#444}table{width:100%;border-collapse:collapse;margin-top:16px}th{padding:10px;text-align:left;border-bottom:2px solid #ccc;font-weight:600}td{border-bottom:1px solid #eee}.total{text-align:right;margin-top:16px;font-size:16px;font-weight:600}.meta{color:#666;margin-bottom:24px;font-size:14px}</style>
+      <style>body{font-family:sans-serif;padding:32px;color:#1a1a1a}h1{font-weight:600;font-size:20px}h2{font-weight:500;font-size:16px;color:#333}h3{font-weight:500;font-size:15px;color:#444}table{width:100%;border-collapse:collapse;margin-top:16px}th{padding:10px;text-align:left;font-weight:600}td{padding:8px}.total{text-align:right;margin-top:16px;font-size:16px;font-weight:600}.meta{color:#666;margin-bottom:24px;font-size:14px}</style>
       </head><body>
         <h1>OrderFlow</h1>
         <h2>SAI KRUPA MEDICAL AND GENERAL STORES</h2>
@@ -204,7 +236,7 @@ function App() {
     const total = allOrders.reduce((s,o) => s + Number(o.amount), 0);
     const html = `
       <html><head><meta charset="UTF-8"><title>All Orders - OrderFlow</title>
-      <style>body{font-family:sans-serif;padding:32px;color:#1a1a1a}h1{font-weight:600;font-size:20px}h2{font-weight:500;font-size:16px;color:#333}h3{font-weight:500;font-size:15px;color:#444}table{width:100%;border-collapse:collapse;margin-top:16px}th{padding:10px;text-align:left;border-bottom:2px solid #ccc;font-weight:600}td{border-bottom:1px solid #eee}.total{text-align:right;margin-top:16px;font-size:16px;font-weight:600}</style>
+      <style>body{font-family:sans-serif;padding:32px;color:#1a1a1a}h1{font-weight:600;font-size:20px}h2{font-weight:500;font-size:16px;color:#333}h3{font-weight:500;font-size:15px;color:#444}table{width:100%;border-collapse:collapse;margin-top:16px}th{padding:10px;text-align:left;font-weight:600}td{padding:8px}.total{text-align:right;margin-top:16px;font-size:16px;font-weight:600}</style>
       </head><body>
         <h1>OrderFlow</h1>
         <h2>SAI KRUPA MEDICAL AND GENERAL STORES</h2>
@@ -222,6 +254,65 @@ function App() {
     win.onload = () => { win.print(); };
   };
 
+  const generatePaymentsPDF = () => {
+    const sorted = [...payments].sort((a,b) => new Date(a.date) - new Date(b.date));
+    const rows = sorted.map(p =>
+      `<tr>
+        <td style="padding:8px;white-space:nowrap">${formatDate(p.date)}</td>
+        <td style="padding:8px">${paymentName(p)}</td>
+        <td style="padding:8px">Rs.${Number(p.amount).toLocaleString('en-IN')}</td>
+      </tr>`
+    ).join('');
+    const total = payments.reduce((s,p) => s + Number(p.amount), 0);
+    const html = `
+      <html><head><meta charset="UTF-8"><title>Distributor Payments - OrderFlow</title>
+      <style>body{font-family:sans-serif;padding:32px;color:#1a1a1a}h1{font-weight:600;font-size:20px}h2{font-weight:500;font-size:16px;color:#333}h3{font-weight:500;font-size:15px;color:#444}table{width:100%;border-collapse:collapse;margin-top:16px}th{padding:10px;text-align:left;font-weight:600}td{padding:8px}.total{text-align:right;margin-top:16px;font-size:16px;font-weight:600}</style>
+      </head><body>
+        <h1>OrderFlow</h1>
+        <h2>SAI KRUPA MEDICAL AND GENERAL STORES</h2>
+        <h3>Distributor Payments</h3>
+        <table>
+          <thead><tr><th>Date</th><th>Distributor</th><th>Amount</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div class="total">Total: Rs.${total.toLocaleString('en-IN')}</div>
+        <div style="margin-top:32px;font-size:12px;color:#999">Generated by L NAGESH - ${new Date().toLocaleDateString('en-IN')}</div>
+      </body></html>`;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank');
+    win.onload = () => { win.print(); };
+  };
+
+  const sharePaymentPDF = (p) => {
+    const html = `
+      <html><head><meta charset="UTF-8"><title>Payment - ${paymentName(p)}</title>
+      <style>body{font-family:sans-serif;padding:32px;color:#1a1a1a}h1{font-weight:600;font-size:20px}h2{font-weight:500;font-size:16px;color:#333}.row{display:flex;justify-content:space-between;padding:10px 0}.label{color:#666;font-size:14px}.value{font-weight:600}</style>
+      </head><body>
+        <h1>OrderFlow</h1>
+        <h2>SAI KRUPA MEDICAL AND GENERAL STORES</h2>
+        <h3>Distributor Payment</h3>
+        <div class="row"><span class="label">Date</span><span class="value">${formatDate(p.date)}</span></div>
+        <div class="row"><span class="label">Distributor</span><span class="value">${paymentName(p)}</span></div>
+        <div class="row"><span class="label">Amount</span><span class="value">Rs.${Number(p.amount).toLocaleString('en-IN')}</span></div>
+        <div style="margin-top:32px;font-size:12px;color:#999">Generated by L NAGESH - ${new Date().toLocaleDateString('en-IN')}</div>
+      </body></html>`;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank');
+    win.onload = () => { win.print(); };
+  };
+
+  const sharePayment = (p) => {
+    const text = `OrderFlow - SAI KRUPA MEDICAL AND GENERAL STORES\nDistributor Payment\nDate: ${formatDate(p.date)}\nDistributor: ${paymentName(p)}\nAmount: Rs.${Number(p.amount).toLocaleString('en-IN')}`;
+    if (navigator.share) {
+      navigator.share({ title: 'Payment Details', text });
+    } else {
+      navigator.clipboard.writeText(text);
+      alert('Payment details copied to clipboard!');
+    }
+  };
+
   const shareOrder = (o) => {
     const text = `OrderFlow - ${selectedDist.name}\nDate: ${formatDate(o.date)}\nInvoice: ${o.invoiceNumber}\nAmount: Rs.${Number(o.amount).toLocaleString('en-IN')}`;
     if (navigator.share) {
@@ -235,7 +326,7 @@ function App() {
   const shareOrderPDF = (o) => {
     const html = `
       <html><head><meta charset="UTF-8"><title>Order - ${o.invoiceNumber}</title>
-      <style>body{font-family:sans-serif;padding:32px;color:#1a1a1a}h1{font-weight:600;font-size:20px}h2{font-weight:500;font-size:16px;color:#333}.row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee}.label{color:#666;font-size:14px}.value{font-weight:600}</style>
+      <style>body{font-family:sans-serif;padding:32px;color:#1a1a1a}h1{font-weight:600;font-size:20px}h2{font-weight:500;font-size:16px;color:#333}.row{display:flex;justify-content:space-between;padding:10px 0}.label{color:#666;font-size:14px}.value{font-weight:600}</style>
       </head><body>
         <h1>OrderFlow</h1>
         <h2>SAI KRUPA MEDICAL AND GENERAL STORES</h2>
@@ -378,11 +469,11 @@ function App() {
                     <div style={{ fontSize: 24, fontWeight: 700 }}>{allOrders.length}</div>
                     <div style={{ fontSize: 11, color: '#73c2fb', marginTop: 4 }}>Click to view all →</div>
                   </div>
-                  <div onClick={() => { setModal('payment'); setForm({}); }}
+                  <div onClick={() => setView('payments')}
                     style={{ background: '#f0f0f0', borderRadius: 10, padding: 16, cursor: 'pointer' }}>
                     <div style={{ fontSize: 12, color: '#666' }}>Distributor Payment</div>
                     <div style={{ fontSize: 24, fontWeight: 700 }}>Rs.{totalAllPayments.toLocaleString('en-IN')}</div>
-                    <div style={{ fontSize: 11, color: '#73c2fb', marginTop: 4 }}>Click to add →</div>
+                    <div style={{ fontSize: 11, color: '#73c2fb', marginTop: 4 }}>Click to view all →</div>
                   </div>
                   <div style={{ background: '#f0f0f0', borderRadius: 10, padding: 16 }}>
                     <div style={{ fontSize: 12, color: '#666' }}>Total Billing</div>
@@ -404,6 +495,74 @@ function App() {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {view === 'payments' && (
+            <div>
+              <button onClick={() => setView('dashboard')}
+                style={{ marginBottom: 16, padding: '6px 14px', borderRadius: 8, border: '1px solid #ccc', cursor: 'pointer', background: '#fff' }}>
+                ← Back
+              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                <h2 style={{ margin: 0 }}>Distributor Payments</h2>
+                <button onClick={() => { setModal('payment'); setForm({}); setEditTarget(null); setUseOthers(false); }}
+                  style={{ padding: '6px 14px', background: '#73c2fb', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>
+                  + Add Payment
+                </button>
+                <button onClick={generatePaymentsPDF}
+                  style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #73c2fb', cursor: 'pointer', background: '#73c2fb', color: '#fff', fontSize: 13 }}>
+                  📄 Download PDF
+                </button>
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
+                    <th style={{ padding: 10, fontSize: 13, color: '#999' }}>Date</th>
+                    <th style={{ padding: 10, fontSize: 13, color: '#999' }}>Distributor</th>
+                    <th style={{ padding: 10, fontSize: 13, color: '#999' }}>Amount</th>
+                    <th style={{ padding: 10, fontSize: 13, color: '#999' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...payments].sort((a,b) => new Date(a.date) - new Date(b.date)).map(p => (
+                    <tr key={p._id} style={{ borderBottom: '1px solid #eee' }}>
+                      <td style={{ padding: 10 }}>{formatDate(p.date)}</td>
+                      <td style={{ padding: 10 }}>{paymentName(p)}</td>
+                      <td style={{ padding: 10, fontWeight: 600 }}>Rs.{Number(p.amount).toLocaleString('en-IN')}</td>
+                      <td style={{ padding: 10 }}>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          <button onClick={() => openEditPayment(p)}
+                            style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', fontSize: 12 }}>
+                            Edit
+                          </button>
+                          <button onClick={() => sharePayment(p)}
+                            style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #73c2fb', cursor: 'pointer', background: '#fff', color: '#73c2fb', fontSize: 12 }}>
+                            Share
+                          </button>
+                          <button onClick={() => sharePaymentPDF(p)}
+                            style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #73c2fb', cursor: 'pointer', background: '#73c2fb', color: '#fff', fontSize: 12 }}>
+                            PDF
+                          </button>
+                          <button onClick={() => handleDeletePayment(p._id)}
+                            style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', color: 'red', fontSize: 12 }}>
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr style={{ borderTop: '2px solid #eee', background: '#f9f9f9' }}>
+                    <td colSpan={2} style={{ padding: 12, fontWeight: 700, fontSize: 15 }}>Total</td>
+                    <td style={{ padding: 12, fontWeight: 700, fontSize: 15, color: '#73c2fb' }}>
+                      Rs.{totalAllPayments.toLocaleString('en-IN')}
+                    </td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
           )}
 
@@ -546,7 +705,7 @@ function App() {
             <h3 style={{ marginTop: 0 }}>
               {modal === 'dist' ? (editTarget ? 'Edit Distributor' : 'Add Distributor') :
                modal === 'order' ? (editTarget ? 'Edit Order' : 'Add Order') :
-               'Add Distributor Payment'}
+               (editTarget ? 'Edit Payment' : 'Add Distributor Payment')}
             </h3>
             {dupWarning && (
               <div style={{ background: '#FAEEDA', color: '#BA7517', padding: '10px 14px', borderRadius: 8, marginBottom: 14, fontSize: 14 }}>
@@ -584,13 +743,33 @@ function App() {
                 </div>
                 <div style={{ marginBottom: 12 }}>
                   <label style={{ fontSize: 13, color: '#666', display: 'block', marginBottom: 4 }}>Distributor</label>
-                  <select value={form.distributorId||''} onChange={e => setForm({...form, distributorId: e.target.value})}
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }}>
-                    <option value="">Select distributor</option>
-                    {[...distributors].sort((a,b) => a.name.localeCompare(b.name)).map(d => (
-                      <option key={d._id} value={d._id}>{d.name}</option>
-                    ))}
-                  </select>
+                  {!useOthers ? (
+                    <select value={form.distributorId||''} onChange={e => {
+                      if (e.target.value === '__others__') {
+                        setUseOthers(true);
+                        setForm({...form, distributorId: '', distributorName: ''});
+                      } else {
+                        setForm({...form, distributorId: e.target.value});
+                      }
+                    }}
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }}>
+                      <option value="">Select distributor</option>
+                      {[...distributors].sort((a,b) => a.name.localeCompare(b.name)).map(d => (
+                        <option key={d._id} value={d._id}>{d.name}</option>
+                      ))}
+                      <option value="__others__">Others (not in list)</option>
+                    </select>
+                  ) : (
+                    <div>
+                      <input value={form.distributorName||''} onChange={e => setForm({...form, distributorName: e.target.value})}
+                        placeholder="Type distributor name"
+                        style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', marginBottom: 6 }}/>
+                      <span onClick={() => { setUseOthers(false); setForm({...form, distributorName: ''}); }}
+                        style={{ fontSize: 12, color: '#73c2fb', cursor: 'pointer' }}>
+                        ← Choose from existing list instead
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div style={{ marginBottom: 12 }}>
                   <label style={{ fontSize: 13, color: '#666', display: 'block', marginBottom: 4 }}>Payment Amount (Rs.)</label>
@@ -600,7 +779,7 @@ function App() {
               </>
             )}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
-              <button onClick={() => { setModal(null); setForm({}); setEditTarget(null); setDupWarning(''); }}
+              <button onClick={() => { setModal(null); setForm({}); setEditTarget(null); setDupWarning(''); setUseOthers(false); }}
                 style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #ccc', cursor: 'pointer', background: '#fff' }}>
                 Cancel
               </button>
