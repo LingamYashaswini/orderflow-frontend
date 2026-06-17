@@ -54,8 +54,8 @@ function App() {
       console.error(err);
     } finally {
       const elapsed = Date.now() - startTime;
-      const minDisplay = 1500;
-      const maxWait = 3000;
+      const minDisplay =3500;
+      const maxWait = 4000;
       const waitTime = Math.min(Math.max(minDisplay - elapsed, 0), maxWait);
       setTimeout(() => setLoading(false), waitTime);
     }
@@ -456,7 +456,7 @@ function App() {
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: 28 }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: 28, background: '#F0F8FE' }}>
 
           {view === 'dashboard' && (
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -512,11 +512,15 @@ function App() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
                 <h2 style={{ margin: 0 }}>Distributor Payments</h2>
                 <button onClick={() => { setModal('payment'); setForm({}); setEditTarget(null); setUseOthers(false); }}
-                  style={{ padding: '6px 14px', background: '#73c2fb', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>
+                  style={{ padding: '6px 14px', background: '#3FA0E8', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>
                   + Add Payment
                 </button>
+                <button onClick={() => { setModal('payment'); setForm({}); setEditTarget(null); setUseOthers(true); }}
+                  style={{ padding: '6px 14px', background: '#fff', color: '#3FA0E8', border: '1px solid #3FA0E8', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>
+                  Others
+                </button>
                 <button onClick={generatePaymentsPDF}
-                  style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #73c2fb', cursor: 'pointer', background: '#73c2fb', color: '#fff', fontSize: 13 }}>
+                  style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #3FA0E8', cursor: 'pointer', background: '#3FA0E8', color: '#fff', fontSize: 13 }}>
                   📄 Download PDF
                 </button>
               </div>
@@ -748,29 +752,19 @@ function App() {
                 </div>
                 <div style={{ marginBottom: 12 }}>
                   <label style={{ fontSize: 13, color: '#666', display: 'block', marginBottom: 4 }}>Distributor</label>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    {!useOthers ? (
-                      <select value={form.distributorId||''} onChange={e => setForm({...form, distributorId: e.target.value})}
-                        style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }}>
-                        <option value="">Select distributor</option>
-                        {[...distributors].sort((a,b) => a.name.localeCompare(b.name)).map(d => (
-                          <option key={d._id} value={d._id}>{d.name}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input value={form.distributorName||''} onChange={e => setForm({...form, distributorName: e.target.value})}
-                        placeholder="Type distributor name"
-                        style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }}/>
-                    )}
-                    <button onClick={() => {
-                      const next = !useOthers;
-                      setUseOthers(next);
-                      setForm({...form, distributorId: next ? '' : form.distributorId, distributorName: next ? form.distributorName : ''});
-                    }}
-                      style={{ padding: '8px 12px', borderRadius: 8, border: useOthers ? 'none' : '1px solid #73c2fb', background: useOthers ? '#73c2fb' : '#fff', color: useOthers ? '#fff' : '#73c2fb', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                      Others
-                    </button>
-                  </div>
+                  {!useOthers ? (
+                    <select value={form.distributorId||''} onChange={e => setForm({...form, distributorId: e.target.value})}
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }}>
+                      <option value="">Select distributor</option>
+                      {[...distributors].sort((a,b) => a.name.localeCompare(b.name)).map(d => (
+                        <option key={d._id} value={d._id}>{d.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input value={form.distributorName||''} onChange={e => setForm({...form, distributorName: e.target.value})}
+                      placeholder="Type distributor name"
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }}/>
+                  )}
                 </div>
                 <div style={{ marginBottom: 12 }}>
                   <label style={{ fontSize: 13, color: '#666', display: 'block', marginBottom: 4 }}>Payment Amount (Rs.)</label>
@@ -785,7 +779,7 @@ function App() {
                 Cancel
               </button>
               <button onClick={modal === 'dist' ? handleSaveDist : modal === 'order' ? handleSaveOrder : handleSavePayment}
-                style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#73c2fb', color: '#fff', cursor: 'pointer' }}>
+                style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#3FA0E8', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>
                 Save
               </button>
             </div>
