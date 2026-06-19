@@ -510,15 +510,15 @@ function App() {
 
               <div style={{ flexShrink: 0 }}>
                 <h2 style={{ margin: '0 0 24px 0', paddingTop: 28 }}>Dashboard</h2>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 14, marginBottom: 24 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 14, marginBottom: 24 }}>
                   <div style={{ background: '#f0f0f0', borderRadius: 10, padding: 14 }}>
                     <div style={{ fontSize: 12, color: '#666' }}>Distributors</div>
                     <div style={{ fontSize: 22, fontWeight: 700 }}>{distributors.length}</div>
                   </div>
                   <div onClick={() => setView('allOrders')}
                     style={{ background: '#f0f0f0', borderRadius: 10, padding: 14, cursor: 'pointer' }}>
-                    <div style={{ fontSize: 12, color: '#666' }}>Total Orders</div>
-                    <div style={{ fontSize: 22, fontWeight: 700 }}>{allOrders.length}</div>
+                    <div style={{ fontSize: 12, color: '#666' }}>All Purchases</div>
+                    <div style={{ fontSize: 18, fontWeight: 700 }}>View</div>
                     <div style={{ fontSize: 11, color: '#3FA0E8', marginTop: 4 }}>Click to view all →</div>
                   </div>
                   <div onClick={() => setView('invoiceSummary')}
@@ -530,7 +530,7 @@ function App() {
                   <div onClick={() => setView('payments')}
                     style={{ background: '#f0f0f0', borderRadius: 10, padding: 14, cursor: 'pointer' }}>
                     <div style={{ fontSize: 12, color: '#666' }}>Distributor Payment</div>
-                    <div style={{ fontSize: 22, fontWeight: 700 }}>Rs.{totalAllPayments.toLocaleString('en-IN')}</div>
+                    <div style={{ fontSize: 18, fontWeight: 700 }}>View</div>
                     <div style={{ fontSize: 11, color: '#3FA0E8', marginTop: 4 }}>Click to view all →</div>
                   </div>
                   <div onClick={() => setView('paymentSummary')}
@@ -539,22 +539,22 @@ function App() {
                     <div style={{ fontSize: 18, fontWeight: 700 }}>View</div>
                     <div style={{ fontSize: 11, color: '#3FA0E8', marginTop: 4 }}>Click to open →</div>
                   </div>
-                  <div style={{ background: '#f0f0f0', borderRadius: 10, padding: 14 }}>
-                    <div style={{ fontSize: 12, color: '#666' }}>Total Billing</div>
-                    <div style={{ fontSize: 22, fontWeight: 700 }}>Rs.{distributors.reduce((s,d) => s + totalFor(d._id), 0).toLocaleString('en-IN')}</div>
-                  </div>
+                  
                 </div>
                 <h3>All Distributors</h3>
               </div>
 
               <div style={{ flex: 1, overflowY: 'auto' }}>
-                {[...distributors].sort((a,b) => a.name.localeCompare(b.name)).map(d => (
+                {[...distributors].sort((a,b) => a.name.localeCompare(b.name)).map((d, idx) => (
                   <div key={d._id} onClick={() => { setSelectedDist(d); setView('distributor'); fetchOrders(d._id); setDistOrderSelectedIds([]); }}
-                    style={{ padding: 14, border: '2px solid #97c1E6', borderRadius: 10, marginBottom: 10, cursor: 'pointer', background: '#fff' }}>
-                    <div style={{ fontWeight: 600 }}>{d.name}</div>
-                    <div style={{ fontSize: 13, color: '#666' }}>{d.phone} · {d.address}</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#3FA0E8', marginTop: 4 }}>
-                      Rs.{totalFor(d._id).toLocaleString('en-IN')}
+                    style={{ padding: 14, border: '2px solid #97c1E6', borderRadius: 10, marginBottom: 10, cursor: 'pointer', background: '#fff', display: 'flex', gap: 12 }}>
+                    <div style={{ fontWeight: 700, color: '#3FA0E8', minWidth: 24 }}>{idx + 1}.</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600 }}>{d.name}</div>
+                      <div style={{ fontSize: 13, color: '#666' }}>{d.phone} · {d.address}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#3FA0E8', marginTop: 4 }}>
+                        Rs.{totalFor(d._id).toLocaleString('en-IN')}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -791,7 +791,7 @@ function App() {
                 ← Back
               </button>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-                <h2 style={{ margin: 0 }}>All Orders</h2>
+                <h2 style={{ margin: 0 }}>All Purchases</h2>
                 <button onClick={generateAllOrdersPDF}
                   style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #3FA0E8', cursor: 'pointer', background: '#3FA0E8', color: '#fff', fontSize: 13 }}>
                   📄 Download All
