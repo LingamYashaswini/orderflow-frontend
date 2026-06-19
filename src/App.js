@@ -26,7 +26,6 @@ function App() {
   const [dupWarning, setDupWarning] = useState('');
   const [loading, setLoading] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
-  const [useOthers, setUseOthers] = useState(false);
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
   const [selectedPaymentIds, setSelectedPaymentIds] = useState([]);
   const [distOrderSelectedIds, setDistOrderSelectedIds] = useState([]);
@@ -42,7 +41,8 @@ function App() {
     if (selectedDist) fetchOrders(selectedDist._id);
   }, [selectedDist]);
 
-  const fetchDistributors = async () => {
+  // Initial load after login — shows full-screen spinner, capped 2-3 sec
+  const fetchInitialData = async () => {
     const startTime = Date.now();
     try {
       setLoading(true);
@@ -58,9 +58,23 @@ function App() {
     } finally {
       const elapsed = Date.now() - startTime;
       const minDisplay = 2000;
-      const maxWait = 3500;
+      const maxWait = 3000;
       const waitTime = Math.min(Math.max(minDisplay - elapsed, 0), maxWait);
       setTimeout(() => setLoading(false), waitTime);
+    }
+  };
+
+  // Silent background refresh — no spinner, used after add/edit/delete
+  const refreshData = async () => {
+    try {
+      const res = await getDistributors();
+      setDistributors(res.data);
+      const allOrdersRes = await getOrders();
+      setAllOrders(allOrdersRes.data);
+      const paymentsRes = await getPayments();
+      setPayments(paymentsRes.data);
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -74,7 +88,7 @@ function App() {
     if (loginForm.username === PRESET_USER && loginForm.password === PRESET_PASS) {
       setLoggedIn(true);
       setLoginError('');
-      fetchDistributors();
+      fetchInitialData();
     } else {
       setLoginError('Invalid username or password');
     }
@@ -92,14 +106,14 @@ function App() {
       await createDistributor(form);
     }
     setModal(null); setForm({}); setEditTarget(null); setDupWarning('');
-    fetchDistributors();
+    refreshData();
   };
 
   const handleDeleteDist = async (id) => {
     if (window.confirm('Delete this distributor?')) {
       await deleteDistributor(id);
       setView('dashboard'); setSelectedDist(null);
-      fetchDistributors();
+      refreshData();
     }
   };
 
@@ -131,22 +145,21 @@ function App() {
   };
 
   const handleSavePayment = async () => {
-    if (!form.date || !form.amount || (!form.distributorId && !form.distributorName)) {
+    if (!form.date || !form.amount || !form.distributorId) {
       alert('Please fill all fields');
       return;
     }
     const data = {
       date: form.date,
       amount: form.amount,
-      distributorId: useOthers ? null : form.distributorId,
-      distributorName: useOthers ? form.distributorName : null
+      distributorId: form.distributorId
     };
     if (editTarget) {
       await updatePayment(editTarget._id, data);
     } else {
       await createPayment(data);
     }
-    setModal(null); setForm({}); setEditTarget(null); setUseOthers(false);
+    setModal(null); setForm({}); setEditTarget(null);
     const paymentsRes = await getPayments();
     setPayments(paymentsRes.data);
   };
@@ -161,13 +174,10 @@ function App() {
 
   const openEditPayment = (p) => {
     setEditTarget(p);
-    const isOthers = !p.distributorId;
-    setUseOthers(isOthers);
     setForm({
       date: p.date.slice(0,10),
       amount: p.amount,
-      distributorId: p.distributorId?._id || '',
-      distributorName: p.distributorName || ''
+      distributorId: p.distributorId?._id || ''
     });
     setModal('payment');
   };
@@ -200,7 +210,7 @@ function App() {
     return `${day}-${month}-${year}`;
   };
 
-  const paymentName = (p) => p.distributorId?.name || p.distributorName || '-';
+  const paymentName = (p) => p.distributorId?.name || '-';
 
   const toggleSelect = (idList, setIdList, id) => {
     setIdList(idList.includes(id) ? idList.filter(x => x !== id) : [...idList, id]);
@@ -281,17 +291,6 @@ function App() {
     buildPaymentsPDF('Selected Payments', list);
   };
 
-  const sharePaymentPDF = (p) => buildPaymentsPDF('Distributor Payment', [p]);
-  const sharePayment = (p) => {
-    const text = `OrderFlow - SAI KRUPA MEDICAL AND GENERAL STORES\nDistributor Payment\nDate: ${formatDate(p.date)}\nDistributor: ${paymentName(p)}\nAmount: Rs.${Number(p.amount).toLocaleString('en-IN')}`;
-    if (navigator.share) {
-      navigator.share({ title: 'Payment Details', text });
-    } else {
-      navigator.clipboard.writeText(text);
-      alert('Payment details copied to clipboard!');
-    }
-  };
-
   const generatePDF = () => buildOrdersPDF(selectedDist.name, orders.map(o => ({ ...o, distributorId: selectedDist })));
   const generateSelectedDistOrdersPDF = () => {
     const list = orders.filter(o => distOrderSelectedIds.includes(o._id)).map(o => ({ ...o, distributorId: selectedDist }));
@@ -299,27 +298,20 @@ function App() {
     buildOrdersPDF(`Selected Orders - ${selectedDist.name}`, list);
   };
 
-  const shareOrder = (o) => {
-    const text = `OrderFlow - ${selectedDist.name}\nDate: ${formatDate(o.date)}\nInvoice: ${o.invoiceNumber}\nAmount: Rs.${Number(o.amount).toLocaleString('en-IN')}`;
-    if (navigator.share) {
-      navigator.share({ title: 'Order Details', text });
-    } else {
-      navigator.clipboard.writeText(text);
-      alert('Order details copied to clipboard!');
-    }
-  };
-
   const shareOrderPDF = (o) => buildOrdersPDF(selectedDist.name, [{ ...o, distributorId: selectedDist }]);
 
   const generateInvoiceSummaryPDF = () => {
     const sortedDists = [...distributors].sort((a,b) => a.name.localeCompare(b.name));
     let rows = '';
+    let grandTotal = 0;
     sortedDists.forEach(d => {
       const distOrders = allOrders.filter(o => {
         const distId = o.distributorId?._id || o.distributorId;
         return distId === d._id;
       }).sort((a,b) => new Date(a.date) - new Date(b.date));
       if (distOrders.length === 0) return;
+      const distTotal = distOrders.reduce((s,o) => s + Number(o.amount), 0);
+      grandTotal += distTotal;
       rows += `<tr><td colspan="4" style="padding:10px 8px 4px;font-weight:700;font-size:14px;color:#3FA0E8">${d.name}</td></tr>`;
       distOrders.forEach(o => {
         rows += `<tr>
@@ -329,20 +321,64 @@ function App() {
           <td style="padding:6px 8px">Rs.${Number(o.amount).toLocaleString('en-IN')}</td>
         </tr>`;
       });
+      rows += `<tr><td></td><td colspan="2" style="padding:6px 8px;font-weight:600">Subtotal</td><td style="padding:6px 8px;font-weight:600">Rs.${distTotal.toLocaleString('en-IN')}</td></tr>`;
     });
-    const total = allOrders.reduce((s,o) => s + Number(o.amount), 0);
     const html = `
       <html><head><meta charset="UTF-8"><title>Distributor Wise Invoice Summary - OrderFlow</title>
-      <style>body{font-family:sans-serif;padding:32px;color:#1a1a1a}h1{font-weight:600;font-size:20px}h2{font-weight:500;font-size:16px;color:#333}h3{font-weight:500;font-size:15px;color:#444}table{width:100%;border-collapse:collapse;margin-top:16px}th{padding:10px;text-align:left;font-weight:600}td{padding:8px}.total{text-align:right;margin-top:16px;font-size:16px;font-weight:600}</style>
+      <style>body{font-family:sans-serif;padding:32px;color:#1a1a1a}h1{font-weight:600;font-size:20px}h2{font-weight:500;font-size:16px;color:#333}h3{font-weight:500;font-size:15px;color:#444}table{width:100%;border-collapse:collapse;margin-top:16px;table-layout:fixed}th{padding:10px;text-align:left;font-weight:600}td{padding:8px}col.c1{width:120px}col.c2{width:140px}col.c3{width:140px}.total{text-align:right;margin-top:16px;font-size:16px;font-weight:600}</style>
       </head><body>
         <h1>OrderFlow</h1>
         <h2>SAI KRUPA MEDICAL AND GENERAL STORES</h2>
         <h3>Distributor Wise Invoice Summary</h3>
         <table>
+          <colgroup><col class="c1"/><col class="c1"/><col class="c2"/><col class="c3"/></colgroup>
           <thead><tr><th></th><th>Date</th><th>Invoice No.</th><th>Amount</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
-        <div class="total">Grand Total: Rs.${total.toLocaleString('en-IN')}</div>
+        <div class="total">Grand Total: Rs.${grandTotal.toLocaleString('en-IN')}</div>
+        <div style="margin-top:32px;font-size:12px;color:#999">Generated by L NAGESH - ${new Date().toLocaleDateString('en-IN')}</div>
+      </body></html>`;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank');
+    win.onload = () => { win.print(); };
+  };
+
+  const generatePaymentSummaryPDF = () => {
+    const sortedDists = [...distributors].sort((a,b) => a.name.localeCompare(b.name));
+    let rows = '';
+    let grandTotal = 0;
+    sortedDists.forEach(d => {
+      const distPayments = payments.filter(p => {
+        const distId = p.distributorId?._id || p.distributorId;
+        return distId === d._id;
+      }).sort((a,b) => new Date(a.date) - new Date(b.date));
+      if (distPayments.length === 0) return;
+      const distTotal = distPayments.reduce((s,p) => s + Number(p.amount), 0);
+      grandTotal += distTotal;
+      rows += `<tr><td colspan="3" style="padding:10px 8px 4px;font-weight:700;font-size:14px;color:#3FA0E8">${d.name}</td></tr>`;
+      distPayments.forEach(p => {
+        rows += `<tr>
+          <td style="padding:6px 8px;white-space:nowrap"></td>
+          <td style="padding:6px 8px;white-space:nowrap">${formatDate(p.date)}</td>
+          <td style="padding:6px 8px">Rs.${Number(p.amount).toLocaleString('en-IN')}</td>
+        </tr>`;
+      });
+      rows += `<tr><td></td><td style="padding:6px 8px;font-weight:600">Subtotal</td><td style="padding:6px 8px;font-weight:600">Rs.${distTotal.toLocaleString('en-IN')}</td></tr>`;
+    });
+    const html = `
+      <html><head><meta charset="UTF-8"><title>Distributor Payment Summary - OrderFlow</title>
+      <style>body{font-family:sans-serif;padding:32px;color:#1a1a1a}h1{font-weight:600;font-size:20px}h2{font-weight:500;font-size:16px;color:#333}h3{font-weight:500;font-size:15px;color:#444}table{width:100%;border-collapse:collapse;margin-top:16px;table-layout:fixed}th{padding:10px;text-align:left;font-weight:600}td{padding:8px}col.c1{width:120px}col.c2{width:140px}.total{text-align:right;margin-top:16px;font-size:16px;font-weight:600}</style>
+      </head><body>
+        <h1>OrderFlow</h1>
+        <h2>SAI KRUPA MEDICAL AND GENERAL STORES</h2>
+        <h3>Distributor Payment Summary</h3>
+        <table>
+          <colgroup><col class="c1"/><col class="c1"/><col class="c2"/></colgroup>
+          <thead><tr><th></th><th>Date</th><th>Amount</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div class="total">Grand Total: Rs.${grandTotal.toLocaleString('en-IN')}</div>
         <div style="margin-top:32px;font-size:12px;color:#999">Generated by L NAGESH - ${new Date().toLocaleDateString('en-IN')}</div>
       </body></html>`;
     const blob = new Blob([html], { type: 'text/html' });
@@ -354,6 +390,13 @@ function App() {
   const filteredDists = distributors
     .filter(d => d.name.toLowerCase().startsWith(search.toLowerCase()) || search === '')
     .sort((a, b) => a.name.localeCompare(b.name));
+
+  const TrashIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6"></polyline>
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m5 0V4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v2"></path>
+    </svg>
+  );
 
   if (!loggedIn) {
     return (
@@ -467,32 +510,38 @@ function App() {
 
               <div style={{ flexShrink: 0 }}>
                 <h2 style={{ margin: '0 0 24px 0', paddingTop: 28 }}>Dashboard</h2>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 16, marginBottom: 24 }}>
-                  <div style={{ background: '#f0f0f0', borderRadius: 10, padding: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 14, marginBottom: 24 }}>
+                  <div style={{ background: '#f0f0f0', borderRadius: 10, padding: 14 }}>
                     <div style={{ fontSize: 12, color: '#666' }}>Distributors</div>
-                    <div style={{ fontSize: 24, fontWeight: 700 }}>{distributors.length}</div>
+                    <div style={{ fontSize: 22, fontWeight: 700 }}>{distributors.length}</div>
                   </div>
                   <div onClick={() => setView('allOrders')}
-                    style={{ background: '#f0f0f0', borderRadius: 10, padding: 16, cursor: 'pointer' }}>
+                    style={{ background: '#f0f0f0', borderRadius: 10, padding: 14, cursor: 'pointer' }}>
                     <div style={{ fontSize: 12, color: '#666' }}>Total Orders</div>
-                    <div style={{ fontSize: 24, fontWeight: 700 }}>{allOrders.length}</div>
+                    <div style={{ fontSize: 22, fontWeight: 700 }}>{allOrders.length}</div>
                     <div style={{ fontSize: 11, color: '#3FA0E8', marginTop: 4 }}>Click to view all →</div>
-                  </div>
-                  <div onClick={() => setView('payments')}
-                    style={{ background: '#f0f0f0', borderRadius: 10, padding: 16, cursor: 'pointer' }}>
-                    <div style={{ fontSize: 12, color: '#666' }}>Distributor Payment</div>
-                    <div style={{ fontSize: 24, fontWeight: 700 }}>Rs.{totalAllPayments.toLocaleString('en-IN')}</div>
-                    <div style={{ fontSize: 11, color: '#3FA0E8', marginTop: 4 }}>Click to view all →</div>
-                  </div>
-                  <div style={{ background: '#f0f0f0', borderRadius: 10, padding: 16 }}>
-                    <div style={{ fontSize: 12, color: '#666' }}>Total Billing</div>
-                    <div style={{ fontSize: 24, fontWeight: 700 }}>Rs.{distributors.reduce((s,d) => s + totalFor(d._id), 0).toLocaleString('en-IN')}</div>
                   </div>
                   <div onClick={() => setView('invoiceSummary')}
-                    style={{ background: '#f0f0f0', borderRadius: 10, padding: 16, cursor: 'pointer' }}>
+                    style={{ background: '#f0f0f0', borderRadius: 10, padding: 14, cursor: 'pointer' }}>
                     <div style={{ fontSize: 12, color: '#666' }}>Dist Wise Invoice Summary</div>
-                    <div style={{ fontSize: 20, fontWeight: 700 }}>View</div>
+                    <div style={{ fontSize: 18, fontWeight: 700 }}>View</div>
                     <div style={{ fontSize: 11, color: '#3FA0E8', marginTop: 4 }}>Click to open →</div>
+                  </div>
+                  <div onClick={() => setView('payments')}
+                    style={{ background: '#f0f0f0', borderRadius: 10, padding: 14, cursor: 'pointer' }}>
+                    <div style={{ fontSize: 12, color: '#666' }}>Distributor Payment</div>
+                    <div style={{ fontSize: 22, fontWeight: 700 }}>Rs.{totalAllPayments.toLocaleString('en-IN')}</div>
+                    <div style={{ fontSize: 11, color: '#3FA0E8', marginTop: 4 }}>Click to view all →</div>
+                  </div>
+                  <div onClick={() => setView('paymentSummary')}
+                    style={{ background: '#f0f0f0', borderRadius: 10, padding: 14, cursor: 'pointer' }}>
+                    <div style={{ fontSize: 12, color: '#666' }}>Dist Payment Summary</div>
+                    <div style={{ fontSize: 18, fontWeight: 700 }}>View</div>
+                    <div style={{ fontSize: 11, color: '#3FA0E8', marginTop: 4 }}>Click to open →</div>
+                  </div>
+                  <div style={{ background: '#f0f0f0', borderRadius: 10, padding: 14 }}>
+                    <div style={{ fontSize: 12, color: '#666' }}>Total Billing</div>
+                    <div style={{ fontSize: 22, fontWeight: 700 }}>Rs.{distributors.reduce((s,d) => s + totalFor(d._id), 0).toLocaleString('en-IN')}</div>
                   </div>
                 </div>
                 <h3>All Distributors</h3>
@@ -526,121 +575,212 @@ function App() {
                   📄 Download PDF
                 </button>
               </div>
-              {[...distributors].sort((a,b) => a.name.localeCompare(b.name)).map(d => {
-                const distOrders = allOrders.filter(o => {
-                  const distId = o.distributorId?._id || o.distributorId;
-                  return distId === d._id;
-                }).sort((a,b) => new Date(a.date) - new Date(b.date));
-                if (distOrders.length === 0) return null;
-                return (
-                  <div key={d._id} style={{ marginBottom: 24 }}>
-                    <h3 style={{ color: '#3FA0E8', marginBottom: 8 }}>{d.name}</h3>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
-                          <th style={{ padding: 8, fontSize: 12, color: '#999' }}>Date</th>
-                          <th style={{ padding: 8, fontSize: 12, color: '#999' }}>Invoice No.</th>
-                          <th style={{ padding: 8, fontSize: 12, color: '#999' }}>Amount</th>
+              <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                <colgroup>
+                  <col style={{ width: '110px' }}/>
+                  <col/>
+                  <col style={{ width: '140px' }}/>
+                </colgroup>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
+                    <th style={{ padding: 8, fontSize: 12, color: '#999' }}>Date</th>
+                    <th style={{ padding: 8, fontSize: 12, color: '#999' }}>Invoice No.</th>
+                    <th style={{ padding: 8, fontSize: 12, color: '#999' }}>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const sortedDists = [...distributors].sort((a,b) => a.name.localeCompare(b.name));
+                    let grandTotal = 0;
+                    const blocks = [];
+                    sortedDists.forEach(d => {
+                      const distOrders = allOrders.filter(o => {
+                        const distId = o.distributorId?._id || o.distributorId;
+                        return distId === d._id;
+                      }).sort((a,b) => new Date(a.date) - new Date(b.date));
+                      if (distOrders.length === 0) return;
+                      const distTotal = distOrders.reduce((s,o) => s + Number(o.amount), 0);
+                      grandTotal += distTotal;
+                      blocks.push(
+                        <tr key={`h-${d._id}`}>
+                          <td colSpan={3} style={{ padding: '10px 8px 4px', fontWeight: 700, fontSize: 14, color: '#3FA0E8' }}>{d.name}</td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {distOrders.map(o => (
-                          <tr key={o._id} style={{ borderBottom: '1px solid #eee' }}>
-                            <td style={{ padding: 8, whiteSpace: 'nowrap' }}>{formatDate(o.date)}</td>
+                      );
+                      distOrders.forEach(o => {
+                        blocks.push(
+                          <tr key={o._id} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                            <td style={{ padding: 8 }}>{formatDate(o.date)}</td>
                             <td style={{ padding: 8 }}>{o.invoiceNumber}</td>
-                            <td style={{ padding: 8, fontWeight: 600 }}>Rs.{Number(o.amount).toLocaleString('en-IN')}</td>
+                            <td style={{ padding: 8 }}>Rs.{Number(o.amount).toLocaleString('en-IN')}</td>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              })}
+                        );
+                      });
+                      blocks.push(
+                        <tr key={`sub-${d._id}`} style={{ borderBottom: '2px solid #eee' }}>
+                          <td></td>
+                          <td style={{ padding: 8, fontWeight: 600 }}>Subtotal</td>
+                          <td style={{ padding: 8, fontWeight: 600 }}>Rs.{distTotal.toLocaleString('en-IN')}</td>
+                        </tr>
+                      );
+                    });
+                    blocks.push(
+                      <tr key="grand-total" style={{ background: '#f0f8fe' }}>
+                        <td></td>
+                        <td style={{ padding: 10, fontWeight: 700, fontSize: 15 }}>Grand Total</td>
+                        <td style={{ padding: 10, fontWeight: 700, fontSize: 15, color: '#3FA0E8' }}>Rs.{grandTotal.toLocaleString('en-IN')}</td>
+                      </tr>
+                    );
+                    return blocks;
+                  })()}
+                </tbody>
+              </table>
             </div>
           )}
 
-          {view === 'payments' && (
+          {view === 'paymentSummary' && (
             <div>
               <button onClick={() => setView('dashboard')}
                 style={{ marginBottom: 16, padding: '6px 14px', borderRadius: 8, border: '1px solid #ccc', cursor: 'pointer', background: '#fff' }}>
                 ← Back
               </button>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-                <h2 style={{ margin: 0 }}>Distributor Payments</h2>
-                <button onClick={() => { setModal('payment'); setForm({}); setEditTarget(null); setUseOthers(false); }}
-                  style={{ padding: '6px 14px', background: '#3FA0E8', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>
-                  + Add Payment
-                </button>
-                <button onClick={() => { setModal('payment'); setForm({}); setEditTarget(null); setUseOthers(true); }}
-                  style={{ padding: '6px 14px', background: '#fff', color: '#3FA0E8', border: '1px solid #3FA0E8', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>
-                  Others
-                </button>
-                <button onClick={generatePaymentsPDF}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                <h2 style={{ margin: 0 }}>Distributor Payment Summary</h2>
+                <button onClick={generatePaymentSummaryPDF}
                   style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #3FA0E8', cursor: 'pointer', background: '#3FA0E8', color: '#fff', fontSize: 13 }}>
-                  📄 Download All
+                  📄 Download PDF
                 </button>
-                {selectedPaymentIds.length > 0 && (
-                  <button onClick={generateSelectedPaymentsPDF}
-                    style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #3FA0E8', cursor: 'pointer', background: '#fff', color: '#3FA0E8', fontSize: 13 }}>
-                    📄 Download Selected ({selectedPaymentIds.length})
-                  </button>
-                )}
               </div>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                <colgroup>
+                  <col style={{ width: '110px' }}/>
+                  <col/>
+                </colgroup>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
-                    <th style={{ padding: 10, fontSize: 13, color: '#999' }}></th>
-                    <th style={{ padding: 10, fontSize: 13, color: '#999' }}>Date</th>
-                    <th style={{ padding: 10, fontSize: 13, color: '#999' }}>Distributor</th>
-                    <th style={{ padding: 10, fontSize: 13, color: '#999' }}>Amount</th>
-                    <th style={{ padding: 10, fontSize: 13, color: '#999' }}>Actions</th>
+                    <th style={{ padding: 8, fontSize: 12, color: '#999' }}>Date</th>
+                    <th style={{ padding: 8, fontSize: 12, color: '#999' }}>Amount</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {[...payments].sort((a,b) => new Date(a.date) - new Date(b.date)).map(p => (
-                    <tr key={p._id} style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={{ padding: 10 }}>
-                        <input type="checkbox" checked={selectedPaymentIds.includes(p._id)}
-                          onChange={() => toggleSelect(selectedPaymentIds, setSelectedPaymentIds, p._id)}
-                          style={{ cursor: 'pointer' }}/>
-                      </td>
-                      <td style={{ padding: 10 }}>{formatDate(p.date)}</td>
-                      <td style={{ padding: 10 }}>{paymentName(p)}</td>
-                      <td style={{ padding: 10, fontWeight: 600 }}>Rs.{Number(p.amount).toLocaleString('en-IN')}</td>
-                      <td style={{ padding: 10 }}>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          <button onClick={() => openEditPayment(p)}
-                            style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', fontSize: 12 }}>
-                            Edit
-                          </button>
-                          <button onClick={() => sharePayment(p)}
-                            style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #3FA0E8', cursor: 'pointer', background: '#fff', color: '#3FA0E8', fontSize: 12 }}>
-                            Share
-                          </button>
-                          <button onClick={() => sharePaymentPDF(p)}
-                            style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #3FA0E8', cursor: 'pointer', background: '#3FA0E8', color: '#fff', fontSize: 12 }}>
-                            PDF
-                          </button>
-                          <button onClick={() => handleDeletePayment(p._id)}
-                            style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', color: 'red', fontSize: 12 }}>
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {(() => {
+                    const sortedDists = [...distributors].sort((a,b) => a.name.localeCompare(b.name));
+                    let grandTotal = 0;
+                    const blocks = [];
+                    sortedDists.forEach(d => {
+                      const distPayments = payments.filter(p => {
+                        const distId = p.distributorId?._id || p.distributorId;
+                        return distId === d._id;
+                      }).sort((a,b) => new Date(a.date) - new Date(b.date));
+                      if (distPayments.length === 0) return;
+                      const distTotal = distPayments.reduce((s,p) => s + Number(p.amount), 0);
+                      grandTotal += distTotal;
+                      blocks.push(
+                        <tr key={`h-${d._id}`}>
+                          <td colSpan={2} style={{ padding: '10px 8px 4px', fontWeight: 700, fontSize: 14, color: '#3FA0E8' }}>{d.name}</td>
+                        </tr>
+                      );
+                      distPayments.forEach(p => {
+                        blocks.push(
+                          <tr key={p._id} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                            <td style={{ padding: 8 }}>{formatDate(p.date)}</td>
+                            <td style={{ padding: 8 }}>Rs.{Number(p.amount).toLocaleString('en-IN')}</td>
+                          </tr>
+                        );
+                      });
+                      blocks.push(
+                        <tr key={`sub-${d._id}`} style={{ borderBottom: '2px solid #eee' }}>
+                          <td style={{ padding: 8, fontWeight: 600 }}>Subtotal</td>
+                          <td style={{ padding: 8, fontWeight: 600 }}>Rs.{distTotal.toLocaleString('en-IN')}</td>
+                        </tr>
+                      );
+                    });
+                    blocks.push(
+                      <tr key="grand-total" style={{ background: '#f0f8fe' }}>
+                        <td style={{ padding: 10, fontWeight: 700, fontSize: 15 }}>Grand Total</td>
+                        <td style={{ padding: 10, fontWeight: 700, fontSize: 15, color: '#3FA0E8' }}>Rs.{grandTotal.toLocaleString('en-IN')}</td>
+                      </tr>
+                    );
+                    return blocks;
+                  })()}
                 </tbody>
-                <tfoot>
-                  <tr style={{ borderTop: '2px solid #eee', background: '#f9f9f9' }}>
-                    <td></td>
-                    <td colSpan={2} style={{ padding: 12, fontWeight: 700, fontSize: 15 }}>Total</td>
-                    <td style={{ padding: 12, fontWeight: 700, fontSize: 15, color: '#3FA0E8' }}>
-                      Rs.{totalAllPayments.toLocaleString('en-IN')}
-                    </td>
-                    <td></td>
-                  </tr>
-                </tfoot>
               </table>
+            </div>
+          )}
+
+          {view === 'payments' && (
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <div style={{ flexShrink: 0 }}>
+                <button onClick={() => setView('dashboard')}
+                  style={{ marginBottom: 16, padding: '6px 14px', borderRadius: 8, border: '1px solid #ccc', cursor: 'pointer', background: '#fff' }}>
+                  ← Back
+                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+                  <h2 style={{ margin: 0 }}>Distributor Payments</h2>
+                  <button onClick={() => { setModal('payment'); setForm({}); setEditTarget(null); }}
+                    style={{ padding: '6px 14px', background: '#3FA0E8', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>
+                    + Add Payment
+                  </button>
+                  <button onClick={generatePaymentsPDF}
+                    style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #3FA0E8', cursor: 'pointer', background: '#3FA0E8', color: '#fff', fontSize: 13 }}>
+                    📄 Download All
+                  </button>
+                  {selectedPaymentIds.length > 0 && (
+                    <button onClick={generateSelectedPaymentsPDF}
+                      style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #3FA0E8', cursor: 'pointer', background: '#fff', color: '#3FA0E8', fontSize: 13 }}>
+                      📄 Download Selected ({selectedPaymentIds.length})
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead style={{ position: 'sticky', top: 0, background: '#F0F8FE', zIndex: 1 }}>
+                    <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
+                      <th style={{ padding: 10, fontSize: 13, color: '#999' }}></th>
+                      <th style={{ padding: 10, fontSize: 13, color: '#999' }}>Date</th>
+                      <th style={{ padding: 10, fontSize: 13, color: '#999' }}>Distributor</th>
+                      <th style={{ padding: 10, fontSize: 13, color: '#999' }}>Amount</th>
+                      <th style={{ padding: 10, fontSize: 13, color: '#999' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...payments].sort((a,b) => new Date(a.date) - new Date(b.date)).map(p => (
+                      <tr key={p._id} style={{ borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: 10 }}>
+                          <input type="checkbox" checked={selectedPaymentIds.includes(p._id)}
+                            onChange={() => toggleSelect(selectedPaymentIds, setSelectedPaymentIds, p._id)}
+                            style={{ cursor: 'pointer' }}/>
+                        </td>
+                        <td style={{ padding: 10 }}>{formatDate(p.date)}</td>
+                        <td style={{ padding: 10 }}>{paymentName(p)}</td>
+                        <td style={{ padding: 10, fontWeight: 600 }}>Rs.{Number(p.amount).toLocaleString('en-IN')}</td>
+                        <td style={{ padding: 10 }}>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button onClick={() => openEditPayment(p)}
+                              style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', fontSize: 12 }}>
+                              Edit
+                            </button>
+                            <button onClick={() => handleDeletePayment(p._id)}
+                              style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', color: 'red', display: 'flex', alignItems: 'center' }}>
+                              <TrashIcon/>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ borderTop: '2px solid #eee', background: '#f9f9f9' }}>
+                      <td></td>
+                      <td colSpan={2} style={{ padding: 12, fontWeight: 700, fontSize: 15 }}>Total</td>
+                      <td style={{ padding: 12, fontWeight: 700, fontSize: 15, color: '#3FA0E8' }}>
+                        Rs.{totalAllPayments.toLocaleString('en-IN')}
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </div>
           )}
 
@@ -718,8 +858,8 @@ function App() {
                     Edit
                   </button>
                   <button onClick={() => handleDeleteDist(selectedDist._id)}
-                    style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', color: 'red' }}>
-                    Delete
+                    style={{ padding: '6px 8px', borderRadius: 8, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', color: 'red', display: 'flex', alignItems: 'center' }}>
+                    <TrashIcon/>
                   </button>
                 </div>
               </div>
@@ -766,22 +906,18 @@ function App() {
                       <td style={{ padding: 10 }}>{o.invoiceNumber}</td>
                       <td style={{ padding: 10, fontWeight: 600 }}>Rs.{Number(o.amount).toLocaleString('en-IN')}</td>
                       <td style={{ padding: 10 }}>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: 6 }}>
                           <button onClick={() => openEditOrder(o)}
                             style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', fontSize: 12 }}>
                             Edit
-                          </button>
-                          <button onClick={() => shareOrder(o)}
-                            style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #3FA0E8', cursor: 'pointer', background: '#fff', color: '#3FA0E8', fontSize: 12 }}>
-                            Share
                           </button>
                           <button onClick={() => shareOrderPDF(o)}
                             style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #3FA0E8', cursor: 'pointer', background: '#3FA0E8', color: '#fff', fontSize: 12 }}>
                             PDF
                           </button>
                           <button onClick={() => handleDeleteOrder(o._id)}
-                            style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', color: 'red', fontSize: 12 }}>
-                            Delete
+                            style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', color: 'red', display: 'flex', alignItems: 'center' }}>
+                            <TrashIcon/>
                           </button>
                         </div>
                       </td>
@@ -849,19 +985,13 @@ function App() {
                 </div>
                 <div style={{ marginBottom: 12 }}>
                   <label style={{ fontSize: 13, color: '#666', display: 'block', marginBottom: 4 }}>Distributor</label>
-                  {!useOthers ? (
-                    <select value={form.distributorId||''} onChange={e => setForm({...form, distributorId: e.target.value})}
-                      style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }}>
-                      <option value="">Select distributor</option>
-                      {[...distributors].sort((a,b) => a.name.localeCompare(b.name)).map(d => (
-                        <option key={d._id} value={d._id}>{d.name}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input value={form.distributorName||''} onChange={e => setForm({...form, distributorName: e.target.value})}
-                      placeholder="Type distributor name"
-                      style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }}/>
-                  )}
+                  <select value={form.distributorId||''} onChange={e => setForm({...form, distributorId: e.target.value})}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }}>
+                    <option value="">Select distributor</option>
+                    {[...distributors].sort((a,b) => a.name.localeCompare(b.name)).map(d => (
+                      <option key={d._id} value={d._id}>{d.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div style={{ marginBottom: 12 }}>
                   <label style={{ fontSize: 13, color: '#666', display: 'block', marginBottom: 4 }}>Payment Amount (Rs.)</label>
@@ -871,7 +1001,7 @@ function App() {
               </>
             )}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
-              <button onClick={() => { setModal(null); setForm({}); setEditTarget(null); setDupWarning(''); setUseOthers(false); }}
+              <button onClick={() => { setModal(null); setForm({}); setEditTarget(null); setDupWarning(''); }}
                 style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #ccc', cursor: 'pointer', background: '#fff' }}>
                 Cancel
               </button>
