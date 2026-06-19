@@ -568,12 +568,15 @@ function App() {
                 style={{ marginBottom: 16, padding: '6px 14px', borderRadius: 8, border: '1px solid #ccc', cursor: 'pointer', background: '#fff' }}>
                 ← Back
               </button>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
                 <h2 style={{ margin: 0 }}>Distributor Wise Invoice Summary</h2>
                 <button onClick={generateInvoiceSummaryPDF}
                   style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #3FA0E8', cursor: 'pointer', background: '#3FA0E8', color: '#fff', fontSize: 13 }}>
                   📄 Download PDF
                 </button>
+              </div>
+              <div style={{ background: '#f0f8fe', padding: '12px 16px', borderRadius: 8, marginBottom: 16, fontWeight: 700, fontSize: 15 }}>
+                Grand Total: <span style={{ color: '#3FA0E8' }}>Rs.{allOrders.reduce((s,o) => s + Number(o.amount), 0).toLocaleString('en-IN')}</span>
               </div>
               <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                 <colgroup>
@@ -591,7 +594,6 @@ function App() {
                 <tbody>
                   {(() => {
                     const sortedDists = [...distributors].sort((a,b) => a.name.localeCompare(b.name));
-                    let grandTotal = 0;
                     const blocks = [];
                     sortedDists.forEach(d => {
                       const distOrders = allOrders.filter(o => {
@@ -600,7 +602,6 @@ function App() {
                       }).sort((a,b) => new Date(a.date) - new Date(b.date));
                       if (distOrders.length === 0) return;
                       const distTotal = distOrders.reduce((s,o) => s + Number(o.amount), 0);
-                      grandTotal += distTotal;
                       blocks.push(
                         <tr key={`h-${d._id}`}>
                           <td colSpan={3} style={{ padding: '10px 8px 4px', fontWeight: 700, fontSize: 14, color: '#3FA0E8' }}>{d.name}</td>
@@ -623,13 +624,6 @@ function App() {
                         </tr>
                       );
                     });
-                    blocks.push(
-                      <tr key="grand-total" style={{ background: '#f0f8fe' }}>
-                        <td></td>
-                        <td style={{ padding: 10, fontWeight: 700, fontSize: 15 }}>Grand Total</td>
-                        <td style={{ padding: 10, fontWeight: 700, fontSize: 15, color: '#3FA0E8' }}>Rs.{grandTotal.toLocaleString('en-IN')}</td>
-                      </tr>
-                    );
                     return blocks;
                   })()}
                 </tbody>
@@ -650,6 +644,9 @@ function App() {
                   📄 Download PDF
                 </button>
               </div>
+              <div style={{ background: '#f0f8fe', padding: '12px 16px', borderRadius: 8, marginBottom: 16, fontWeight: 700, fontSize: 15 }}>
+                Grand Total: <span style={{ color: '#3FA0E8' }}>Rs.{totalAllPayments.toLocaleString('en-IN')}</span>
+              </div>
               <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                 <colgroup>
                   <col style={{ width: '110px' }}/>
@@ -664,7 +661,6 @@ function App() {
                 <tbody>
                   {(() => {
                     const sortedDists = [...distributors].sort((a,b) => a.name.localeCompare(b.name));
-                    let grandTotal = 0;
                     const blocks = [];
                     sortedDists.forEach(d => {
                       const distPayments = payments.filter(p => {
@@ -673,7 +669,6 @@ function App() {
                       }).sort((a,b) => new Date(a.date) - new Date(b.date));
                       if (distPayments.length === 0) return;
                       const distTotal = distPayments.reduce((s,p) => s + Number(p.amount), 0);
-                      grandTotal += distTotal;
                       blocks.push(
                         <tr key={`h-${d._id}`}>
                           <td colSpan={2} style={{ padding: '10px 8px 4px', fontWeight: 700, fontSize: 14, color: '#3FA0E8' }}>{d.name}</td>
@@ -694,12 +689,6 @@ function App() {
                         </tr>
                       );
                     });
-                    blocks.push(
-                      <tr key="grand-total" style={{ background: '#f0f8fe' }}>
-                        <td style={{ padding: 10, fontWeight: 700, fontSize: 15 }}>Grand Total</td>
-                        <td style={{ padding: 10, fontWeight: 700, fontSize: 15, color: '#3FA0E8' }}>Rs.{grandTotal.toLocaleString('en-IN')}</td>
-                      </tr>
-                    );
                     return blocks;
                   })()}
                 </tbody>
@@ -730,6 +719,22 @@ function App() {
                       📄 Download Selected ({selectedPaymentIds.length})
                     </button>
                   )}
+                </div>
+              </div>
+              <div style={{ background: '#f0f8fe', padding: '12px 16px', borderRadius: 8, marginBottom: 16, fontWeight: 700, fontSize: 15, flexShrink: 0 }}>
+                  Total: <span style={{ color: '#3FA0E8' }}>Rs.{totalAllPayments.toLocaleString('en-IN')}</span>
+                </div>
+              </div>
+              <div style={{ background: '#f0f8fe', padding: '12px 16px', borderRadius: 8, marginBottom: 16, fontWeight: 700, fontSize: 15, flexShrink: 0 }}>
+                  Total: <span style={{ color: '#3FA0E8' }}>Rs.{totalAllPayments.toLocaleString('en-IN')}</span>
+                </div>
+              </div>
+              <div style={{ background: '#f0f8fe', padding: '12px 16px', borderRadius: 8, marginBottom: 16, fontWeight: 700, fontSize: 15, flexShrink: 0 }}>
+                  Total: <span style={{ color: '#3FA0E8' }}>Rs.{totalAllPayments.toLocaleString('en-IN')}</span>
+                </div>
+              </div>
+              <div style={{ background: '#f0f8fe', padding: '12px 16px', borderRadius: 8, marginBottom: 16, fontWeight: 700, fontSize: 15, flexShrink: 0 }}>
+                  Total: <span style={{ color: '#3FA0E8' }}>Rs.{totalAllPayments.toLocaleString('en-IN')}</span>
                 </div>
               </div>
               <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -769,17 +774,7 @@ function App() {
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot>
-                    <tr style={{ borderTop: '2px solid #eee', background: '#f9f9f9' }}>
-                      <td></td>
-                      <td colSpan={2} style={{ padding: 12, fontWeight: 700, fontSize: 15 }}>Total</td>
-                      <td style={{ padding: 12, fontWeight: 700, fontSize: 15, color: '#3FA0E8' }}>
-                        Rs.{totalAllPayments.toLocaleString('en-IN')}
-                      </td>
-                      <td></td>
-                    </tr>
-                  </tfoot>
-                </table>
+                  </table>
               </div>
             </div>
           )}
@@ -802,6 +797,9 @@ function App() {
                     📄 Download Selected ({selectedOrderIds.length})
                   </button>
                 )}
+              </div>
+              <div style={{ background: '#f0f8fe', padding: '12px 16px', borderRadius: 8, marginBottom: 16, fontWeight: 700, fontSize: 15 }}>
+                Total: <span style={{ color: '#3FA0E8' }}>Rs.{allOrders.reduce((s,o) => s + Number(o.amount), 0).toLocaleString('en-IN')}</span>
               </div>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
@@ -828,15 +826,6 @@ function App() {
                     </tr>
                   ))}
                 </tbody>
-                <tfoot>
-                  <tr style={{ borderTop: '2px solid #eee', background: '#f9f9f9' }}>
-                    <td></td>
-                    <td colSpan={3} style={{ padding: 12, fontWeight: 700, fontSize: 15 }}>Total</td>
-                    <td style={{ padding: 12, fontWeight: 700, fontSize: 15, color: '#3FA0E8' }}>
-                      Rs.{allOrders.reduce((s,o) => s + Number(o.amount), 0).toLocaleString('en-IN')}
-                    </td>
-                  </tr>
-                </tfoot>
               </table>
             </div>
           )}
