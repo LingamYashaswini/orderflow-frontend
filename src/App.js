@@ -416,7 +416,7 @@ function App() {
             </div>
           )}
 
-          {/* ===== ALL PURCHASES (COMPACT) ===== */}
+          {/* ===== ALL PURCHASES (SUPER COMPACT) ===== */}
           {view === 'allOrders' && (
             <div>
               <button onClick={() => setView('dashboard')} style={btnBack}>← Back</button>
@@ -431,26 +431,26 @@ function App() {
                 )}
               </div>
               <TotalBar label="Total" amount={allOrders.reduce((s,o) => s + Number(o.amount), 0)} />
-              <table style={{ borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap' }}>
+              <table style={{ borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap', width: 'auto' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
-                    <th style={{ padding: '2px 4px', color: '#999' }}>
+                    <th style={{ padding: '1px 4px', color: '#999' }}>
                       <input type="checkbox" checked={selectedOrderIds.length === allOrders.length && allOrders.length > 0} onChange={(e) => toggleAllOrders(e.target.checked)} style={{ cursor: 'pointer' }}/>
                     </th>
-                    <th style={{ padding: '2px 4px', color: '#999' }}>Date</th>
-                    <th style={{ padding: '2px 4px', color: '#999' }}>Distributor</th>
-                    <th style={{ padding: '2px 4px', color: '#999' }}>Invoice No.</th>
-                    <th style={{ padding: '2px 4px', color: '#999' }}>Amount</th>
+                    <th style={{ padding: '1px 4px', color: '#999' }}>Date</th>
+                    <th style={{ padding: '1px 4px', color: '#999' }}>Distributor</th>
+                    <th style={{ padding: '1px 4px', color: '#999' }}>Invoice No.</th>
+                    <th style={{ padding: '1px 4px', color: '#999' }}>Amount</th>
                   </tr>
                 </thead>
                 <tbody>
                   {[...allOrders].sort((a,b) => new Date(a.date) - new Date(b.date)).map(o => (
                     <tr key={o._id} style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={{ padding: '2px 4px' }}><input type="checkbox" checked={selectedOrderIds.includes(o._id)} onChange={() => toggleSelect(selectedOrderIds, setSelectedOrderIds, o._id)} style={{ cursor: 'pointer' }}/></td>
-                      <td style={{ padding: '2px 4px' }}>{formatDate(o.date)}</td>
-                      <td style={{ padding: '2px 4px' }}>{o.distributorId?.name || '-'}</td>
-                      <td style={{ padding: '2px 4px' }}>{o.invoiceNumber}</td>
-                      <td style={{ padding: '2px 4px', fontWeight: 600 }}>Rs.{Number(o.amount).toLocaleString('en-IN')}</td>
+                      <td style={{ padding: '1px 4px' }}><input type="checkbox" checked={selectedOrderIds.includes(o._id)} onChange={() => toggleSelect(selectedOrderIds, setSelectedOrderIds, o._id)} style={{ cursor: 'pointer' }}/></td>
+                      <td style={{ padding: '1px 4px' }}>{formatDate(o.date)}</td>
+                      <td style={{ padding: '1px 4px' }}>{o.distributorId?.name || '-'}</td>
+                      <td style={{ padding: '1px 4px' }}>{o.invoiceNumber}</td>
+                      <td style={{ padding: '1px 4px', fontWeight: 600 }}>Rs.{Number(o.amount).toLocaleString('en-IN')}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -458,7 +458,7 @@ function App() {
             </div>
           )}
 
-          {/* ===== INVOICE SUMMARY (COMPACT) ===== */}
+          {/* ===== INVOICE SUMMARY (SUPER COMPACT) ===== */}
           {view === 'invoiceSummary' && (
             <div>
               <button onClick={() => setView('dashboard')} style={btnBack}>← Back</button>
@@ -467,12 +467,12 @@ function App() {
                 <button onClick={generateInvoiceSummaryPDF} style={btnPrimary}>📄 Download PDF</button>
               </div>
               <TotalBar label="Grand Total" amount={allOrders.reduce((s,o) => s + Number(o.amount), 0)} />
-              <table style={{ borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap' }}>
+              <table style={{ borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap', width: 'auto' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
-                    <th style={{ padding: '2px 4px', fontSize: 12, color: '#999' }}>Date</th>
-                    <th style={{ padding: '2px 4px', fontSize: 12, color: '#999' }}>Invoice No.</th>
-                    <th style={{ padding: '2px 4px', fontSize: 12, color: '#999' }}>Amount</th>
+                    <th style={{ padding: '1px 4px', fontSize: 12, color: '#999' }}>Date</th>
+                    <th style={{ padding: '1px 4px', fontSize: 12, color: '#999' }}>Invoice No.</th>
+                    <th style={{ padding: '1px 4px', fontSize: 12, color: '#999' }}>Amount</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -483,9 +483,9 @@ function App() {
                       const distOrders = allOrders.filter(o => (o.distributorId?._id || o.distributorId) === d._id).sort((a,b) => new Date(a.date) - new Date(b.date));
                       if (!distOrders.length) return;
                       const distTotal = distOrders.reduce((s,o) => s + Number(o.amount), 0);
-                      blocks.push(<tr key={`h-${d._id}`}><td colSpan={3} style={{ padding: '6px 4px 2px', fontWeight: 700, fontSize: 14, color: '#3FA0E8' }}>{d.name}</td></tr>);
-                      distOrders.forEach(o => blocks.push(<tr key={o._id} style={{ borderBottom: '1px solid #f5f5f5' }}><td style={{ padding: '2px 4px' }}>{formatDate(o.date)}</td><td style={{ padding: '2px 4px' }}>{o.invoiceNumber}</td><td style={{ padding: '2px 4px' }}>Rs.{Number(o.amount).toLocaleString('en-IN')}</td></tr>));
-                      blocks.push(<tr key={`sub-${d._id}`} style={{ borderBottom: '2px solid #eee' }}><td></td><td style={{ padding: '2px 4px', fontWeight: 600 }}>Subtotal</td><td style={{ padding: '2px 4px', fontWeight: 600 }}>Rs.{distTotal.toLocaleString('en-IN')}</td></tr>);
+                      blocks.push(<tr key={`h-${d._id}`}><td colSpan={3} style={{ padding: '4px 4px 2px', fontWeight: 700, fontSize: 14, color: '#3FA0E8' }}>{d.name}</td></tr>);
+                      distOrders.forEach(o => blocks.push(<tr key={o._id} style={{ borderBottom: '1px solid #f5f5f5' }}><td style={{ padding: '1px 4px' }}>{formatDate(o.date)}</td><td style={{ padding: '1px 4px' }}>{o.invoiceNumber}</td><td style={{ padding: '1px 4px' }}>Rs.{Number(o.amount).toLocaleString('en-IN')}</td></tr>));
+                      blocks.push(<tr key={`sub-${d._id}`} style={{ borderBottom: '2px solid #eee' }}><td></td><td style={{ padding: '1px 4px', fontWeight: 600 }}>Subtotal</td><td style={{ padding: '1px 4px', fontWeight: 600 }}>Rs.{distTotal.toLocaleString('en-IN')}</td></tr>);
                     });
                     return blocks;
                   })()}
@@ -494,7 +494,7 @@ function App() {
             </div>
           )}
 
-          {/* ===== DISTRIBUTOR PAYMENTS (COMPACT) ===== */}
+          {/* ===== DISTRIBUTOR PAYMENTS (SUPER COMPACT) ===== */}
           {view === 'payments' && (
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               <div style={{ flexShrink: 0 }}>
@@ -513,29 +513,29 @@ function App() {
                 <TotalBar label="Total" amount={totalAllPayments} />
               </div>
               <div style={{ flex: 1, overflowY: 'auto' }}>
-                <table style={{ borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap' }}>
+                <table style={{ borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap', width: 'auto' }}>
                   <thead style={{ position: 'sticky', top: 0, background: '#F0F8FE', zIndex: 1 }}>
                     <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
-                      <th style={{ padding: '2px 4px', color: '#999' }}>
+                      <th style={{ padding: '1px 4px', color: '#999' }}>
                         <input type="checkbox" checked={selectedPaymentIds.length === payments.length && payments.length > 0} onChange={(e) => toggleAllPayments(e.target.checked)} style={{ cursor: 'pointer' }}/>
                       </th>
-                      <th style={{ padding: '2px 4px', color: '#999' }}>Date</th>
-                      <th style={{ padding: '2px 4px', color: '#999' }}>Distributor</th>
-                      <th style={{ padding: '2px 4px', color: '#999' }}>Amount</th>
-                      <th style={{ padding: '2px 4px', color: '#999' }}>Actions</th>
+                      <th style={{ padding: '1px 4px', color: '#999' }}>Date</th>
+                      <th style={{ padding: '1px 4px', color: '#999' }}>Distributor</th>
+                      <th style={{ padding: '1px 4px', color: '#999' }}>Amount</th>
+                      <th style={{ padding: '1px 4px', color: '#999' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {[...payments].sort((a,b) => new Date(a.date) - new Date(b.date)).map(p => (
                       <tr key={p._id} style={{ borderBottom: '1px solid #eee' }}>
-                        <td style={{ padding: '2px 4px' }}><input type="checkbox" checked={selectedPaymentIds.includes(p._id)} onChange={() => toggleSelect(selectedPaymentIds, setSelectedPaymentIds, p._id)} style={{ cursor: 'pointer' }}/></td>
-                        <td style={{ padding: '2px 4px' }}>{formatDate(p.date)}</td>
-                        <td style={{ padding: '2px 4px' }}>{paymentName(p)}</td>
-                        <td style={{ padding: '2px 4px', fontWeight: 600 }}>Rs.{Number(p.amount).toLocaleString('en-IN')}</td>
-                        <td style={{ padding: '2px 4px' }}>
+                        <td style={{ padding: '1px 4px' }}><input type="checkbox" checked={selectedPaymentIds.includes(p._id)} onChange={() => toggleSelect(selectedPaymentIds, setSelectedPaymentIds, p._id)} style={{ cursor: 'pointer' }}/></td>
+                        <td style={{ padding: '1px 4px' }}>{formatDate(p.date)}</td>
+                        <td style={{ padding: '1px 4px' }}>{paymentName(p)}</td>
+                        <td style={{ padding: '1px 4px', fontWeight: 600 }}>Rs.{Number(p.amount).toLocaleString('en-IN')}</td>
+                        <td style={{ padding: '1px 4px' }}>
                           <div style={{ display: 'flex', gap: 4 }}>
-                            <button onClick={() => openEditPayment(p)} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', fontSize: 12 }}>Edit</button>
-                            <button onClick={() => handleDeletePayment(p._id)} style={{ padding: '2px 4px', borderRadius: 4, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', color: 'red', display: 'flex', alignItems: 'center' }}><TrashIcon/></button>
+                            <button onClick={() => openEditPayment(p)} style={{ padding: '1px 4px', borderRadius: 4, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', fontSize: 11 }}>Edit</button>
+                            <button onClick={() => handleDeletePayment(p._id)} style={{ padding: '1px 2px', borderRadius: 4, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', color: 'red', display: 'flex', alignItems: 'center' }}><TrashIcon/></button>
                           </div>
                         </td>
                       </tr>
@@ -546,7 +546,7 @@ function App() {
             </div>
           )}
 
-          {/* ===== PAYMENT SUMMARY (COMPACT) ===== */}
+          {/* ===== PAYMENT SUMMARY (SUPER COMPACT) ===== */}
           {view === 'paymentSummary' && (
             <div>
               <button onClick={() => setView('dashboard')} style={btnBack}>← Back</button>
@@ -555,11 +555,11 @@ function App() {
                 <button onClick={generatePaymentSummaryPDF} style={btnPrimary}>📄 Download PDF</button>
               </div>
               <TotalBar label="Grand Total" amount={totalAllPayments} />
-              <table style={{ borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap' }}>
+              <table style={{ borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap', width: 'auto' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
-                    <th style={{ padding: '2px 4px', fontSize: 12, color: '#999' }}>Date</th>
-                    <th style={{ padding: '2px 4px', fontSize: 12, color: '#999' }}>Amount</th>
+                    <th style={{ padding: '1px 4px', fontSize: 12, color: '#999' }}>Date</th>
+                    <th style={{ padding: '1px 4px', fontSize: 12, color: '#999' }}>Amount</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -570,9 +570,9 @@ function App() {
                       const dp = payments.filter(p => (p.distributorId?._id || p.distributorId) === d._id).sort((a,b) => new Date(a.date) - new Date(b.date));
                       if (!dp.length) return;
                       const dt = dp.reduce((s,p) => s + Number(p.amount), 0);
-                      blocks.push(<tr key={`h-${d._id}`}><td colSpan={2} style={{ padding: '6px 4px 2px', fontWeight: 700, fontSize: 14, color: '#3FA0E8' }}>{d.name}</td></tr>);
-                      dp.forEach(p => blocks.push(<tr key={p._id} style={{ borderBottom: '1px solid #f5f5f5' }}><td style={{ padding: '2px 4px' }}>{formatDate(p.date)}</td><td style={{ padding: '2px 4px' }}>Rs.{Number(p.amount).toLocaleString('en-IN')}</td></tr>));
-                      blocks.push(<tr key={`sub-${d._id}`} style={{ borderBottom: '2px solid #eee' }}><td style={{ padding: '2px 4px', fontWeight: 600 }}>Subtotal</td><td style={{ padding: '2px 4px', fontWeight: 600 }}>Rs.{dt.toLocaleString('en-IN')}</td></tr>);
+                      blocks.push(<tr key={`h-${d._id}`}><td colSpan={2} style={{ padding: '4px 4px 2px', fontWeight: 700, fontSize: 14, color: '#3FA0E8' }}>{d.name}</td></tr>);
+                      dp.forEach(p => blocks.push(<tr key={p._id} style={{ borderBottom: '1px solid #f5f5f5' }}><td style={{ padding: '1px 4px' }}>{formatDate(p.date)}</td><td style={{ padding: '1px 4px' }}>Rs.{Number(p.amount).toLocaleString('en-IN')}</td></tr>));
+                      blocks.push(<tr key={`sub-${d._id}`} style={{ borderBottom: '2px solid #eee' }}><td style={{ padding: '1px 4px', fontWeight: 600 }}>Subtotal</td><td style={{ padding: '1px 4px', fontWeight: 600 }}>Rs.{dt.toLocaleString('en-IN')}</td></tr>);
                     });
                     return blocks;
                   })()}
@@ -602,28 +602,28 @@ function App() {
                   {distOrderSelectedIds.length > 0 && <button onClick={() => { const list = orders.filter(o => distOrderSelectedIds.includes(o._id)).map(o => ({ ...o, distributorId: selectedDist })); if (!list.length) return; buildOrdersPDF('Selected - ' + selectedDist.name, list); }} style={btnOutline}>📄 Download Selected ({distOrderSelectedIds.length})</button>}
                 </div>
               </div>
-              <table style={{ borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap' }}>
+              <table style={{ borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap', width: 'auto' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
-                    <th style={{ padding: '2px 4px', color: '#999' }}></th>
-                    <th style={{ padding: '2px 4px', color: '#999' }}>Date</th>
-                    <th style={{ padding: '2px 4px', color: '#999' }}>Invoice No.</th>
-                    <th style={{ padding: '2px 4px', color: '#999' }}>Amount</th>
-                    <th style={{ padding: '2px 4px', color: '#999' }}>Actions</th>
+                    <th style={{ padding: '1px 4px', color: '#999' }}></th>
+                    <th style={{ padding: '1px 4px', color: '#999' }}>Date</th>
+                    <th style={{ padding: '1px 4px', color: '#999' }}>Invoice No.</th>
+                    <th style={{ padding: '1px 4px', color: '#999' }}>Amount</th>
+                    <th style={{ padding: '1px 4px', color: '#999' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {orders.map(o => (
                     <tr key={o._id} style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={{ padding: '2px 4px' }}><input type="checkbox" checked={distOrderSelectedIds.includes(o._id)} onChange={() => toggleSelect(distOrderSelectedIds, setDistOrderSelectedIds, o._id)} style={{ cursor: 'pointer' }}/></td>
-                      <td style={{ padding: '2px 4px' }}>{formatDate(o.date)}</td>
-                      <td style={{ padding: '2px 4px' }}>{o.invoiceNumber}</td>
-                      <td style={{ padding: '2px 4px', fontWeight: 600 }}>Rs.{Number(o.amount).toLocaleString('en-IN')}</td>
-                      <td style={{ padding: '2px 4px' }}>
+                      <td style={{ padding: '1px 4px' }}><input type="checkbox" checked={distOrderSelectedIds.includes(o._id)} onChange={() => toggleSelect(distOrderSelectedIds, setDistOrderSelectedIds, o._id)} style={{ cursor: 'pointer' }}/></td>
+                      <td style={{ padding: '1px 4px' }}>{formatDate(o.date)}</td>
+                      <td style={{ padding: '1px 4px' }}>{o.invoiceNumber}</td>
+                      <td style={{ padding: '1px 4px', fontWeight: 600 }}>Rs.{Number(o.amount).toLocaleString('en-IN')}</td>
+                      <td style={{ padding: '1px 4px' }}>
                         <div style={{ display: 'flex', gap: 4 }}>
-                          <button onClick={() => openEditOrder(o)} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', fontSize: 12 }}>Edit</button>
-                          <button onClick={() => buildOrdersPDF(selectedDist.name, [{ ...o, distributorId: selectedDist }])} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid #3FA0E8', cursor: 'pointer', background: '#3FA0E8', color: '#fff', fontSize: 12 }}>PDF</button>
-                          <button onClick={() => handleDeleteOrder(o._id)} style={{ padding: '2px 4px', borderRadius: 4, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', color: 'red', display: 'flex', alignItems: 'center' }}><TrashIcon/></button>
+                          <button onClick={() => openEditOrder(o)} style={{ padding: '1px 4px', borderRadius: 4, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', fontSize: 11 }}>Edit</button>
+                          <button onClick={() => buildOrdersPDF(selectedDist.name, [{ ...o, distributorId: selectedDist }])} style={{ padding: '1px 4px', borderRadius: 4, border: '1px solid #3FA0E8', cursor: 'pointer', background: '#3FA0E8', color: '#fff', fontSize: 11 }}>PDF</button>
+                          <button onClick={() => handleDeleteOrder(o._id)} style={{ padding: '1px 2px', borderRadius: 4, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', color: 'red', display: 'flex', alignItems: 'center' }}><TrashIcon/></button>
                         </div>
                       </td>
                     </tr>
