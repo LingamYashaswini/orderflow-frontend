@@ -29,8 +29,9 @@ function App() {
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
   const [selectedPaymentIds, setSelectedPaymentIds] = useState([]);
   const [distOrderSelectedIds, setDistOrderSelectedIds] = useState([]);
-  // NEW: for invoice summary selection
   const [invoiceSelectedIds, setInvoiceSelectedIds] = useState([]);
+  // NEW: for payment summary selection
+  const [paymentSummarySelectedIds, setPaymentSummarySelectedIds] = useState([]);
 
   useEffect(() => {
     const ping = setInterval(() => {
@@ -222,7 +223,7 @@ function App() {
     setPayments(paymentsRes.data);
   };
 
-  // --- NEW: Invoice Summary selection ---
+  // --- Invoice Summary selection ---
   const toggleAllInvoice = (checked) => {
     setInvoiceSelectedIds(checked ? allOrders.map(o => o._id) : []);
   };
@@ -231,6 +232,17 @@ function App() {
     const selected = allOrders.filter(o => invoiceSelectedIds.includes(o._id));
     if (selected.length === 0) return;
     buildOrdersPDF('Selected Invoice Summary', selected);
+  };
+
+  // --- Payment Summary selection ---
+  const toggleAllPaymentSummary = (checked) => {
+    setPaymentSummarySelectedIds(checked ? payments.map(p => p._id) : []);
+  };
+
+  const downloadSelectedPaymentSummary = () => {
+    const selected = payments.filter(p => paymentSummarySelectedIds.includes(p._id));
+    if (selected.length === 0) return;
+    buildPaymentsPDF('Selected Payment Summary', selected);
   };
 
   const openPDF = (html) => {
@@ -598,18 +610,31 @@ function App() {
             </div>
           )}
 
-          {/* ===== PAYMENT SUMMARY ===== */}
+          {/* ===== PAYMENT SUMMARY (with selection) ===== */}
           {view === 'paymentSummary' && (
             <div>
               <button onClick={() => setView('dashboard')} style={btnBack}>← Back</button>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
                 <h2 style={{ margin: 0 }}>Distributor Payment Summary</h2>
-                <button onClick={generatePaymentSummaryPDF} style={btnPrimary}>📄 Download PDF</button>
+                <button onClick={generatePaymentSummaryPDF} style={btnPrimary}>📄 Download All</button>
+                {paymentSummarySelectedIds.length > 0 && (
+                  <button onClick={downloadSelectedPaymentSummary} style={btnOutline}>
+                    📄 Download Selected ({paymentSummarySelectedIds.length})
+                  </button>
+                )}
               </div>
               <TotalBar label="Grand Total" amount={totalAllPayments} />
               <table style={{ borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap', width: 'auto' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
+                    <th style={{ padding: '1px 4px', color: '#999' }}>
+                      <input
+                        type="checkbox"
+                        checked={paymentSummarySelectedIds.length === payments.length && payments.length > 0}
+                        onChange={(e) => toggleAllPaymentSummary(e.target.checked)}
+                        style={{ cursor: 'pointer' }}
+                      />
+                    </th>
                     <th style={{ padding: '1px 4px', fontSize: 12, color: '#999' }}>Date</th>
                     <th style={{ padding: '1px 4px', fontSize: 12, color: '#999' }}>Amount</th>
                   </tr>
@@ -622,9 +647,34 @@ function App() {
                       const dp = payments.filter(p => (p.distributorId?._id || p.distributorId) === d._id).sort((a,b) => new Date(a.date) - new Date(b.date));
                       if (!dp.length) return;
                       const dt = dp.reduce((s,p) => s + Number(p.amount), 0);
-                      blocks.push(<tr key={`h-${d._id}`}><td colSpan={2} style={{ padding: '4px 4px 2px', fontWeight: 700, fontSize: 14, color: '#3FA0E8' }}>{d.name}</td></tr>);
-                      dp.forEach(p => blocks.push(<tr key={p._id} style={{ borderBottom: '1px solid #f5f5f5' }}><td style={{ padding: '1px 4px' }}>{formatDate(p.date)}</td><td style={{ padding: '1px 4px' }}>Rs.{Number(p.amount).toLocaleString('en-IN')}</td></tr>));
-                      blocks.push(<tr key={`sub-${d._id}`} style={{ borderBottom: '2px solid #eee' }}><td style={{ padding: '1px 4px', fontWeight: 600 }}>Subtotal</td><td style={{ padding: '1px 4px', fontWeight: 600 }}>Rs.{dt.toLocaleString('en-IN')}</td></tr>);
+                      blocks.push(
+                        <tr key={`h-${d._id}`}>
+                          <td colSpan={3} style={{ padding: '4px 4px 2px', fontWeight: 700, fontSize: 14, color: '#3FA0E8' }}>{d.name}</td>
+                        </tr>
+                      );
+                      dp.forEach(p => {
+                        blocks.push(
+                          <tr key={p._id} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                            <td style={{ padding: '1px 4px' }}>
+                              <input
+                                type="checkbox"
+                                checked={paymentSummarySelectedIds.includes(p._id)}
+                                onChange={() => toggleSelect(paymentSummarySelectedIds, setPaymentSummarySelectedIds, p._id)}
+                                style={{ cursor: 'pointer' }}
+                              />
+                            </td>
+                            <td style={{ padding: '1px 4px' }}>{formatDate(p.date)}</td>
+                            <td style={{ padding: '1px 4px' }}>Rs.{Number(p.amount).toLocaleString('en-IN')}</td>
+                          </tr>
+                        );
+                      });
+                      blocks.push(
+                        <tr key={`sub-${d._id}`} style={{ borderBottom: '2px solid #eee' }}>
+                          <td></td>
+                          <td style={{ padding: '1px 4px', fontWeight: 600 }}>Subtotal</td>
+                          <td style={{ padding: '1px 4px', fontWeight: 600 }}>Rs.{dt.toLocaleString('en-IN')}</td>
+                        </tr>
+                      );
                     });
                     return blocks;
                   })()}
