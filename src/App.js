@@ -30,7 +30,6 @@ function App() {
   const [selectedPaymentIds, setSelectedPaymentIds] = useState([]);
   const [distOrderSelectedIds, setDistOrderSelectedIds] = useState([]);
   const [invoiceSelectedIds, setInvoiceSelectedIds] = useState([]);
-  // NEW: for payment summary selection
   const [paymentSummarySelectedIds, setPaymentSummarySelectedIds] = useState([]);
 
   useEffect(() => {
@@ -223,7 +222,6 @@ function App() {
     setPayments(paymentsRes.data);
   };
 
-  // --- Invoice Summary selection ---
   const toggleAllInvoice = (checked) => {
     setInvoiceSelectedIds(checked ? allOrders.map(o => o._id) : []);
   };
@@ -234,7 +232,6 @@ function App() {
     buildOrdersPDF('Selected Invoice Summary', selected);
   };
 
-  // --- Payment Summary selection ---
   const toggleAllPaymentSummary = (checked) => {
     setPaymentSummarySelectedIds(checked ? payments.map(p => p._id) : []);
   };
@@ -441,7 +438,7 @@ function App() {
             </div>
           )}
 
-          {/* ===== ALL PURCHASES ===== */}
+          {/* ===== ALL PURCHASES (Sticky Header) ===== */}
           {view === 'allOrders' && (
             <div>
               <button onClick={() => setView('dashboard')} style={btnBack}>← Back</button>
@@ -456,34 +453,36 @@ function App() {
                 )}
               </div>
               <TotalBar label="Total" amount={allOrders.reduce((s,o) => s + Number(o.amount), 0)} />
-              <table style={{ borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap', width: 'auto' }}>
-                <thead>
-                  <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
-                    <th style={{ padding: '1px 4px', color: '#999' }}>
-                      <input type="checkbox" checked={selectedOrderIds.length === allOrders.length && allOrders.length > 0} onChange={(e) => toggleAllOrders(e.target.checked)} style={{ cursor: 'pointer' }}/>
-                    </th>
-                    <th style={{ padding: '1px 4px', color: '#999' }}>Date</th>
-                    <th style={{ padding: '1px 4px', color: '#999' }}>Distributor</th>
-                    <th style={{ padding: '1px 4px', color: '#999' }}>Invoice No.</th>
-                    <th style={{ padding: '1px 4px', color: '#999' }}>Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...allOrders].sort((a,b) => new Date(a.date) - new Date(b.date)).map(o => (
-                    <tr key={o._id} style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={{ padding: '1px 4px' }}><input type="checkbox" checked={selectedOrderIds.includes(o._id)} onChange={() => toggleSelect(selectedOrderIds, setSelectedOrderIds, o._id)} style={{ cursor: 'pointer' }}/></td>
-                      <td style={{ padding: '1px 4px' }}>{formatDate(o.date)}</td>
-                      <td style={{ padding: '1px 4px' }}>{o.distributorId?.name || '-'}</td>
-                      <td style={{ padding: '1px 4px' }}>{o.invoiceNumber}</td>
-                      <td style={{ padding: '1px 4px', fontWeight: 600 }}>Rs.{Number(o.amount).toLocaleString('en-IN')}</td>
+              <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                <table style={{ borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap', width: 'auto' }}>
+                  <thead style={{ position: 'sticky', top: 0, background: '#F0F8FE', zIndex: 1 }}>
+                    <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
+                      <th style={{ padding: '1px 4px', color: '#999' }}>
+                        <input type="checkbox" checked={selectedOrderIds.length === allOrders.length && allOrders.length > 0} onChange={(e) => toggleAllOrders(e.target.checked)} style={{ cursor: 'pointer' }}/>
+                      </th>
+                      <th style={{ padding: '1px 4px', color: '#999' }}>Date</th>
+                      <th style={{ padding: '1px 4px', color: '#999' }}>Distributor</th>
+                      <th style={{ padding: '1px 4px', color: '#999' }}>Invoice No.</th>
+                      <th style={{ padding: '1px 4px', color: '#999' }}>Amount</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {[...allOrders].sort((a,b) => new Date(a.date) - new Date(b.date)).map(o => (
+                      <tr key={o._id} style={{ borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: '1px 4px' }}><input type="checkbox" checked={selectedOrderIds.includes(o._id)} onChange={() => toggleSelect(selectedOrderIds, setSelectedOrderIds, o._id)} style={{ cursor: 'pointer' }}/></td>
+                        <td style={{ padding: '1px 4px' }}>{formatDate(o.date)}</td>
+                        <td style={{ padding: '1px 4px' }}>{o.distributorId?.name || '-'}</td>
+                        <td style={{ padding: '1px 4px' }}>{o.invoiceNumber}</td>
+                        <td style={{ padding: '1px 4px', fontWeight: 600 }}>Rs.{Number(o.amount).toLocaleString('en-IN')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
-          {/* ===== INVOICE SUMMARY (with selection) ===== */}
+          {/* ===== INVOICE SUMMARY (Sticky Header) ===== */}
           {view === 'invoiceSummary' && (
             <div>
               <button onClick={() => setView('dashboard')} style={btnBack}>← Back</button>
@@ -497,68 +496,70 @@ function App() {
                 )}
               </div>
               <TotalBar label="Grand Total" amount={allOrders.reduce((s,o) => s + Number(o.amount), 0)} />
-              <table style={{ borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap', width: 'auto' }}>
-                <thead>
-                  <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
-                    <th style={{ padding: '1px 4px', color: '#999' }}>
-                      <input
-                        type="checkbox"
-                        checked={invoiceSelectedIds.length === allOrders.length && allOrders.length > 0}
-                        onChange={(e) => toggleAllInvoice(e.target.checked)}
-                        style={{ cursor: 'pointer' }}
-                      />
-                    </th>
-                    <th style={{ padding: '1px 4px', fontSize: 12, color: '#999' }}>Date</th>
-                    <th style={{ padding: '1px 4px', fontSize: 12, color: '#999' }}>Invoice No.</th>
-                    <th style={{ padding: '1px 4px', fontSize: 12, color: '#999' }}>Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const sortedDists = [...distributors].sort((a,b) => a.name.localeCompare(b.name));
-                    const blocks = [];
-                    sortedDists.forEach(d => {
-                      const distOrders = allOrders.filter(o => (o.distributorId?._id || o.distributorId) === d._id).sort((a,b) => new Date(a.date) - new Date(b.date));
-                      if (!distOrders.length) return;
-                      const distTotal = distOrders.reduce((s,o) => s + Number(o.amount), 0);
-                      blocks.push(
-                        <tr key={`h-${d._id}`}>
-                          <td colSpan={4} style={{ padding: '4px 4px 2px', fontWeight: 700, fontSize: 14, color: '#3FA0E8' }}>{d.name}</td>
-                        </tr>
-                      );
-                      distOrders.forEach(o => {
+              <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                <table style={{ borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap', width: 'auto' }}>
+                  <thead style={{ position: 'sticky', top: 0, background: '#F0F8FE', zIndex: 1 }}>
+                    <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
+                      <th style={{ padding: '1px 4px', color: '#999' }}>
+                        <input
+                          type="checkbox"
+                          checked={invoiceSelectedIds.length === allOrders.length && allOrders.length > 0}
+                          onChange={(e) => toggleAllInvoice(e.target.checked)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      </th>
+                      <th style={{ padding: '1px 4px', fontSize: 12, color: '#999' }}>Date</th>
+                      <th style={{ padding: '1px 4px', fontSize: 12, color: '#999' }}>Invoice No.</th>
+                      <th style={{ padding: '1px 4px', fontSize: 12, color: '#999' }}>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const sortedDists = [...distributors].sort((a,b) => a.name.localeCompare(b.name));
+                      const blocks = [];
+                      sortedDists.forEach(d => {
+                        const distOrders = allOrders.filter(o => (o.distributorId?._id || o.distributorId) === d._id).sort((a,b) => new Date(a.date) - new Date(b.date));
+                        if (!distOrders.length) return;
+                        const distTotal = distOrders.reduce((s,o) => s + Number(o.amount), 0);
                         blocks.push(
-                          <tr key={o._id} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                            <td style={{ padding: '1px 4px' }}>
-                              <input
-                                type="checkbox"
-                                checked={invoiceSelectedIds.includes(o._id)}
-                                onChange={() => toggleSelect(invoiceSelectedIds, setInvoiceSelectedIds, o._id)}
-                                style={{ cursor: 'pointer' }}
-                              />
-                            </td>
-                            <td style={{ padding: '1px 4px' }}>{formatDate(o.date)}</td>
-                            <td style={{ padding: '1px 4px' }}>{o.invoiceNumber}</td>
-                            <td style={{ padding: '1px 4px' }}>Rs.{Number(o.amount).toLocaleString('en-IN')}</td>
+                          <tr key={`h-${d._id}`}>
+                            <td colSpan={4} style={{ padding: '4px 4px 2px', fontWeight: 700, fontSize: 14, color: '#3FA0E8' }}>{d.name}</td>
+                          </tr>
+                        );
+                        distOrders.forEach(o => {
+                          blocks.push(
+                            <tr key={o._id} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                              <td style={{ padding: '1px 4px' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={invoiceSelectedIds.includes(o._id)}
+                                  onChange={() => toggleSelect(invoiceSelectedIds, setInvoiceSelectedIds, o._id)}
+                                  style={{ cursor: 'pointer' }}
+                                />
+                              </td>
+                              <td style={{ padding: '1px 4px' }}>{formatDate(o.date)}</td>
+                              <td style={{ padding: '1px 4px' }}>{o.invoiceNumber}</td>
+                              <td style={{ padding: '1px 4px' }}>Rs.{Number(o.amount).toLocaleString('en-IN')}</td>
+                            </tr>
+                          );
+                        });
+                        blocks.push(
+                          <tr key={`sub-${d._id}`} style={{ borderBottom: '2px solid #eee' }}>
+                            <td></td>
+                            <td colSpan={2} style={{ padding: '1px 4px', fontWeight: 600 }}>Subtotal</td>
+                            <td style={{ padding: '1px 4px', fontWeight: 600 }}>Rs.{distTotal.toLocaleString('en-IN')}</td>
                           </tr>
                         );
                       });
-                      blocks.push(
-                        <tr key={`sub-${d._id}`} style={{ borderBottom: '2px solid #eee' }}>
-                          <td></td>
-                          <td colSpan={2} style={{ padding: '1px 4px', fontWeight: 600 }}>Subtotal</td>
-                          <td style={{ padding: '1px 4px', fontWeight: 600 }}>Rs.{distTotal.toLocaleString('en-IN')}</td>
-                        </tr>
-                      );
-                    });
-                    return blocks;
-                  })()}
-                </tbody>
-              </table>
+                      return blocks;
+                    })()}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
-          {/* ===== DISTRIBUTOR PAYMENTS ===== */}
+          {/* ===== DISTRIBUTOR PAYMENTS (already sticky – unchanged) ===== */}
           {view === 'payments' && (
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               <div style={{ flexShrink: 0 }}>
@@ -610,7 +611,7 @@ function App() {
             </div>
           )}
 
-          {/* ===== PAYMENT SUMMARY (with selection) ===== */}
+          {/* ===== PAYMENT SUMMARY (Sticky Header) ===== */}
           {view === 'paymentSummary' && (
             <div>
               <button onClick={() => setView('dashboard')} style={btnBack}>← Back</button>
@@ -624,65 +625,68 @@ function App() {
                 )}
               </div>
               <TotalBar label="Grand Total" amount={totalAllPayments} />
-              <table style={{ borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap', width: 'auto' }}>
-                <thead>
-                  <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
-                    <th style={{ padding: '1px 4px', color: '#999' }}>
-                      <input
-                        type="checkbox"
-                        checked={paymentSummarySelectedIds.length === payments.length && payments.length > 0}
-                        onChange={(e) => toggleAllPaymentSummary(e.target.checked)}
-                        style={{ cursor: 'pointer' }}
-                      />
-                    </th>
-                    <th style={{ padding: '1px 4px', fontSize: 12, color: '#999' }}>Date</th>
-                    <th style={{ padding: '1px 4px', fontSize: 12, color: '#999' }}>Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const sortedDists = [...distributors].sort((a,b) => a.name.localeCompare(b.name));
-                    const blocks = [];
-                    sortedDists.forEach(d => {
-                      const dp = payments.filter(p => (p.distributorId?._id || p.distributorId) === d._id).sort((a,b) => new Date(a.date) - new Date(b.date));
-                      if (!dp.length) return;
-                      const dt = dp.reduce((s,p) => s + Number(p.amount), 0);
-                      blocks.push(
-                        <tr key={`h-${d._id}`}>
-                          <td colSpan={3} style={{ padding: '4px 4px 2px', fontWeight: 700, fontSize: 14, color: '#3FA0E8' }}>{d.name}</td>
-                        </tr>
-                      );
-                      dp.forEach(p => {
+              <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                <table style={{ borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap', width: 'auto' }}>
+                  <thead style={{ position: 'sticky', top: 0, background: '#F0F8FE', zIndex: 1 }}>
+                    <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
+                      <th style={{ padding: '1px 4px', color: '#999' }}>
+                        <input
+                          type="checkbox"
+                          checked={paymentSummarySelectedIds.length === payments.length && payments.length > 0}
+                          onChange={(e) => toggleAllPaymentSummary(e.target.checked)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      </th>
+                      <th style={{ padding: '1px 4px', fontSize: 12, color: '#999' }}>Date</th>
+                      <th style={{ padding: '1px 4px', fontSize: 12, color: '#999' }}>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const sortedDists = [...distributors].sort((a,b) => a.name.localeCompare(b.name));
+                      const blocks = [];
+                      sortedDists.forEach(d => {
+                        const dp = payments.filter(p => (p.distributorId?._id || p.distributorId) === d._id).sort((a,b) => new Date(a.date) - new Date(b.date));
+                        if (!dp.length) return;
+                        const dt = dp.reduce((s,p) => s + Number(p.amount), 0);
                         blocks.push(
-                          <tr key={p._id} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                            <td style={{ padding: '1px 4px' }}>
-                              <input
-                                type="checkbox"
-                                checked={paymentSummarySelectedIds.includes(p._id)}
-                                onChange={() => toggleSelect(paymentSummarySelectedIds, setPaymentSummarySelectedIds, p._id)}
-                                style={{ cursor: 'pointer' }}
-                              />
-                            </td>
-                            <td style={{ padding: '1px 4px' }}>{formatDate(p.date)}</td>
-                            <td style={{ padding: '1px 4px' }}>Rs.{Number(p.amount).toLocaleString('en-IN')}</td>
+                          <tr key={`h-${d._id}`}>
+                            <td colSpan={3} style={{ padding: '4px 4px 2px', fontWeight: 700, fontSize: 14, color: '#3FA0E8' }}>{d.name}</td>
+                          </tr>
+                        );
+                        dp.forEach(p => {
+                          blocks.push(
+                            <tr key={p._id} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                              <td style={{ padding: '1px 4px' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={paymentSummarySelectedIds.includes(p._id)}
+                                  onChange={() => toggleSelect(paymentSummarySelectedIds, setPaymentSummarySelectedIds, p._id)}
+                                  style={{ cursor: 'pointer' }}
+                                />
+                              </td>
+                              <td style={{ padding: '1px 4px' }}>{formatDate(p.date)}</td>
+                              <td style={{ padding: '1px 4px' }}>Rs.{Number(p.amount).toLocaleString('en-IN')}</td>
+                            </tr>
+                          );
+                        });
+                        blocks.push(
+                          <tr key={`sub-${d._id}`} style={{ borderBottom: '2px solid #eee' }}>
+                            <td></td>
+                            <td style={{ padding: '1px 4px', fontWeight: 600 }}>Subtotal</td>
+                            <td style={{ padding: '1px 4px', fontWeight: 600 }}>Rs.{dt.toLocaleString('en-IN')}</td>
                           </tr>
                         );
                       });
-                      blocks.push(
-                        <tr key={`sub-${d._id}`} style={{ borderBottom: '2px solid #eee' }}>
-                          <td></td>
-                          <td style={{ padding: '1px 4px', fontWeight: 600 }}>Subtotal</td>
-                          <td style={{ padding: '1px 4px', fontWeight: 600 }}>Rs.{dt.toLocaleString('en-IN')}</td>
-                        </tr>
-                      );
-                    });
-                    return blocks;
-                  })()}
-                </tbody>
-              </table>
+                      return blocks;
+                    })()}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
+          {/* ===== DISTRIBUTOR VIEW (Sticky Header) ===== */}
           {view === 'distributor' && selectedDist && (
             <div>
               <button onClick={() => { setView('dashboard'); setSelectedDist(null); }} style={btnBack}>← Back</button>
@@ -704,42 +708,44 @@ function App() {
                   {distOrderSelectedIds.length > 0 && <button onClick={() => { const list = orders.filter(o => distOrderSelectedIds.includes(o._id)).map(o => ({ ...o, distributorId: selectedDist })); if (!list.length) return; buildOrdersPDF('Selected - ' + selectedDist.name, list); }} style={btnOutline}>📄 Download Selected ({distOrderSelectedIds.length})</button>}
                 </div>
               </div>
-              <table style={{ borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap', width: 'auto' }}>
-                <thead>
-                  <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
-                    <th style={{ padding: '1px 4px', color: '#999' }}></th>
-                    <th style={{ padding: '1px 4px', color: '#999' }}>Date</th>
-                    <th style={{ padding: '1px 4px', color: '#999' }}>Invoice No.</th>
-                    <th style={{ padding: '1px 4px', color: '#999' }}>Amount</th>
-                    <th style={{ padding: '1px 4px', color: '#999' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orders.map(o => (
-                    <tr key={o._id} style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={{ padding: '1px 4px' }}><input type="checkbox" checked={distOrderSelectedIds.includes(o._id)} onChange={() => toggleSelect(distOrderSelectedIds, setDistOrderSelectedIds, o._id)} style={{ cursor: 'pointer' }}/></td>
-                      <td style={{ padding: '1px 4px' }}>{formatDate(o.date)}</td>
-                      <td style={{ padding: '1px 4px' }}>{o.invoiceNumber}</td>
-                      <td style={{ padding: '1px 4px', fontWeight: 600 }}>Rs.{Number(o.amount).toLocaleString('en-IN')}</td>
-                      <td style={{ padding: '1px 4px' }}>
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          <button onClick={() => openEditOrder(o)} style={{ padding: '1px 4px', borderRadius: 4, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', fontSize: 11 }}>Edit</button>
-                          <button onClick={() => buildOrdersPDF(selectedDist.name, [{ ...o, distributorId: selectedDist }])} style={{ padding: '1px 4px', borderRadius: 4, border: '1px solid #3FA0E8', cursor: 'pointer', background: '#3FA0E8', color: '#fff', fontSize: 11 }}>PDF</button>
-                          <button onClick={() => handleDeleteOrder(o._id)} style={{ padding: '1px 2px', borderRadius: 4, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', color: 'red', display: 'flex', alignItems: 'center' }}><TrashIcon/></button>
-                        </div>
-                      </td>
+              <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                <table style={{ borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap', width: 'auto' }}>
+                  <thead style={{ position: 'sticky', top: 0, background: '#F0F8FE', zIndex: 1 }}>
+                    <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
+                      <th style={{ padding: '1px 4px', color: '#999' }}></th>
+                      <th style={{ padding: '1px 4px', color: '#999' }}>Date</th>
+                      <th style={{ padding: '1px 4px', color: '#999' }}>Invoice No.</th>
+                      <th style={{ padding: '1px 4px', color: '#999' }}>Amount</th>
+                      <th style={{ padding: '1px 4px', color: '#999' }}>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr style={{ borderTop: '2px solid #eee', background: '#f9f9f9' }}>
-                    <td></td>
-                    <td colSpan={2} style={{ padding: '6px 8px', fontWeight: 700, fontSize: 15 }}>Total</td>
-                    <td style={{ padding: '6px 8px', fontWeight: 700, fontSize: 15, color: '#3FA0E8' }}>Rs.{orders.reduce((s,o) => s + Number(o.amount), 0).toLocaleString('en-IN')}</td>
-                    <td></td>
-                  </tr>
-                </tfoot>
-              </table>
+                  </thead>
+                  <tbody>
+                    {orders.map(o => (
+                      <tr key={o._id} style={{ borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: '1px 4px' }}><input type="checkbox" checked={distOrderSelectedIds.includes(o._id)} onChange={() => toggleSelect(distOrderSelectedIds, setDistOrderSelectedIds, o._id)} style={{ cursor: 'pointer' }}/></td>
+                        <td style={{ padding: '1px 4px' }}>{formatDate(o.date)}</td>
+                        <td style={{ padding: '1px 4px' }}>{o.invoiceNumber}</td>
+                        <td style={{ padding: '1px 4px', fontWeight: 600 }}>Rs.{Number(o.amount).toLocaleString('en-IN')}</td>
+                        <td style={{ padding: '1px 4px' }}>
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            <button onClick={() => openEditOrder(o)} style={{ padding: '1px 4px', borderRadius: 4, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', fontSize: 11 }}>Edit</button>
+                            <button onClick={() => buildOrdersPDF(selectedDist.name, [{ ...o, distributorId: selectedDist }])} style={{ padding: '1px 4px', borderRadius: 4, border: '1px solid #3FA0E8', cursor: 'pointer', background: '#3FA0E8', color: '#fff', fontSize: 11 }}>PDF</button>
+                            <button onClick={() => handleDeleteOrder(o._id)} style={{ padding: '1px 2px', borderRadius: 4, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', color: 'red', display: 'flex', alignItems: 'center' }}><TrashIcon/></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ borderTop: '2px solid #eee', background: '#f9f9f9' }}>
+                      <td></td>
+                      <td colSpan={2} style={{ padding: '6px 8px', fontWeight: 700, fontSize: 15 }}>Total</td>
+                      <td style={{ padding: '6px 8px', fontWeight: 700, fontSize: 15, color: '#3FA0E8' }}>Rs.{orders.reduce((s,o) => s + Number(o.amount), 0).toLocaleString('en-IN')}</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </div>
           )}
         </div>
