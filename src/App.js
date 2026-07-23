@@ -232,6 +232,19 @@ function App() {
     buildOrdersPDF('Selected Invoice Summary', selected);
   };
 
+  // NEW: Delete selected orders from Invoice Summary
+  const deleteSelectedInvoiceOrders = async () => {
+    if (invoiceSelectedIds.length === 0) return;
+    if (!window.confirm(`Delete ${invoiceSelectedIds.length} selected order(s) from invoice summary?`)) return;
+    for (const id of invoiceSelectedIds) {
+      await deleteOrder(id);
+    }
+    setInvoiceSelectedIds([]);
+    const allOrdersRes = await getOrders();
+    setAllOrders(allOrdersRes.data);
+    if (selectedDist) fetchOrders(selectedDist._id);
+  };
+
   const toggleAllPaymentSummary = (checked) => {
     setPaymentSummarySelectedIds(checked ? payments.map(p => p._id) : []);
   };
@@ -240,6 +253,18 @@ function App() {
     const selected = payments.filter(p => paymentSummarySelectedIds.includes(p._id));
     if (selected.length === 0) return;
     buildPaymentsPDF('Selected Payment Summary', selected);
+  };
+
+  // NEW: Delete selected payments from Payment Summary
+  const deleteSelectedPaymentSummary = async () => {
+    if (paymentSummarySelectedIds.length === 0) return;
+    if (!window.confirm(`Delete ${paymentSummarySelectedIds.length} selected payment(s) from payment summary?`)) return;
+    for (const id of paymentSummarySelectedIds) {
+      await deletePayment(id);
+    }
+    setPaymentSummarySelectedIds([]);
+    const paymentsRes = await getPayments();
+    setPayments(paymentsRes.data);
   };
 
   const openPDF = (html) => {
@@ -322,6 +347,7 @@ function App() {
 
   const btnPrimary = { padding: '8px 18px', background: '#3FA0E8', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 15 };
   const btnOutline = { padding: '8px 18px', borderRadius: 8, border: '1px solid #3FA0E8', cursor: 'pointer', background: '#fff', color: '#3FA0E8', fontSize: 15 };
+  const btnDanger = { padding: '8px 18px', borderRadius: 8, border: '1px solid #ff4444', cursor: 'pointer', background: '#fff', color: '#ff4444', fontSize: 15 };
   const btnBack = { marginBottom: 16, padding: '8px 18px', borderRadius: 8, border: '1px solid #ccc', cursor: 'pointer', background: '#fff', fontSize: 15 };
 
   if (!loggedIn) {
@@ -438,7 +464,7 @@ function App() {
             </div>
           )}
 
-          {/* ===== ALL PURCHASES (Sticky Header) ===== */}
+          {/* ===== ALL PURCHASES ===== */}
           {view === 'allOrders' && (
             <div>
               <button onClick={() => setView('dashboard')} style={btnBack}>← Back</button>
@@ -448,7 +474,7 @@ function App() {
                 {selectedOrderIds.length > 0 && (
                   <>
                     <button onClick={() => { const list = allOrders.filter(o => selectedOrderIds.includes(o._id)); if (!list.length) return; buildOrdersPDF('Selected Purchases', list); }} style={btnOutline}>📄 Download Selected ({selectedOrderIds.length})</button>
-                    <button onClick={deleteSelectedOrders} style={{ ...btnOutline, color: 'red', borderColor: 'red' }}>🗑 Delete Selected ({selectedOrderIds.length})</button>
+                    <button onClick={deleteSelectedOrders} style={btnDanger}>🗑 Delete Selected ({selectedOrderIds.length})</button>
                   </>
                 )}
               </div>
@@ -482,7 +508,7 @@ function App() {
             </div>
           )}
 
-          {/* ===== INVOICE SUMMARY (Sticky Header) ===== */}
+          {/* ===== INVOICE SUMMARY (with Delete) ===== */}
           {view === 'invoiceSummary' && (
             <div>
               <button onClick={() => setView('dashboard')} style={btnBack}>← Back</button>
@@ -490,9 +516,14 @@ function App() {
                 <h2 style={{ margin: 0, fontSize: 24 }}>Distributor Wise Invoice Summary</h2>
                 <button onClick={generateInvoiceSummaryPDF} style={btnPrimary}>📄 Download All</button>
                 {invoiceSelectedIds.length > 0 && (
-                  <button onClick={downloadSelectedInvoice} style={btnOutline}>
-                    📄 Download Selected ({invoiceSelectedIds.length})
-                  </button>
+                  <>
+                    <button onClick={downloadSelectedInvoice} style={btnOutline}>
+                      📄 Download Selected ({invoiceSelectedIds.length})
+                    </button>
+                    <button onClick={deleteSelectedInvoiceOrders} style={btnDanger}>
+                      🗑 Delete Selected ({invoiceSelectedIds.length})
+                    </button>
+                  </>
                 )}
               </div>
               <TotalBar label="Grand Total" amount={allOrders.reduce((s,o) => s + Number(o.amount), 0)} />
@@ -559,7 +590,7 @@ function App() {
             </div>
           )}
 
-          {/* ===== DISTRIBUTOR PAYMENTS (already sticky – unchanged) ===== */}
+          {/* ===== DISTRIBUTOR PAYMENTS ===== */}
           {view === 'payments' && (
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               <div style={{ flexShrink: 0 }}>
@@ -571,7 +602,7 @@ function App() {
                   {selectedPaymentIds.length > 0 && (
                     <>
                       <button onClick={() => { const list = payments.filter(p => selectedPaymentIds.includes(p._id)); if (!list.length) return; buildPaymentsPDF('Selected Payments', list); }} style={btnOutline}>📄 Download Selected ({selectedPaymentIds.length})</button>
-                      <button onClick={deleteSelectedPayments} style={{ ...btnOutline, color: 'red', borderColor: 'red' }}>🗑 Delete Selected ({selectedPaymentIds.length})</button>
+                      <button onClick={deleteSelectedPayments} style={btnDanger}>🗑 Delete Selected ({selectedPaymentIds.length})</button>
                     </>
                   )}
                 </div>
@@ -611,7 +642,7 @@ function App() {
             </div>
           )}
 
-          {/* ===== PAYMENT SUMMARY (Sticky Header) ===== */}
+          {/* ===== PAYMENT SUMMARY (with Delete) ===== */}
           {view === 'paymentSummary' && (
             <div>
               <button onClick={() => setView('dashboard')} style={btnBack}>← Back</button>
@@ -619,9 +650,14 @@ function App() {
                 <h2 style={{ margin: 0, fontSize: 24 }}>Distributor Payment Summary</h2>
                 <button onClick={generatePaymentSummaryPDF} style={btnPrimary}>📄 Download All</button>
                 {paymentSummarySelectedIds.length > 0 && (
-                  <button onClick={downloadSelectedPaymentSummary} style={btnOutline}>
-                    📄 Download Selected ({paymentSummarySelectedIds.length})
-                  </button>
+                  <>
+                    <button onClick={downloadSelectedPaymentSummary} style={btnOutline}>
+                      📄 Download Selected ({paymentSummarySelectedIds.length})
+                    </button>
+                    <button onClick={deleteSelectedPaymentSummary} style={btnDanger}>
+                      🗑 Delete Selected ({paymentSummarySelectedIds.length})
+                    </button>
+                  </>
                 )}
               </div>
               <TotalBar label="Grand Total" amount={totalAllPayments} />
@@ -686,7 +722,7 @@ function App() {
             </div>
           )}
 
-          {/* ===== DISTRIBUTOR VIEW (Sticky Header) ===== */}
+          {/* ===== DISTRIBUTOR VIEW ===== */}
           {view === 'distributor' && selectedDist && (
             <div>
               <button onClick={() => { setView('dashboard'); setSelectedDist(null); }} style={btnBack}>← Back</button>
