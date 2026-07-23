@@ -31,7 +31,6 @@ function App() {
   const [distOrderSelectedIds, setDistOrderSelectedIds] = useState([]);
   const [invoiceSelectedIds, setInvoiceSelectedIds] = useState([]);
   const [paymentSummarySelectedIds, setPaymentSummarySelectedIds] = useState([]);
-  // NEW: Filter states for summary pages
   const [invoiceFilterDist, setInvoiceFilterDist] = useState('all');
   const [paymentFilterDist, setPaymentFilterDist] = useState('all');
 
@@ -270,7 +269,6 @@ function App() {
     setPayments(paymentsRes.data);
   };
 
-  // NEW: Filter functions for summary pages
   const getFilteredInvoiceOrders = () => {
     if (invoiceFilterDist === 'all') return allOrders;
     return allOrders.filter(o => {
@@ -285,11 +283,6 @@ function App() {
       const distId = p.distributorId?._id || p.distributorId;
       return distId === paymentFilterDist;
     });
-  };
-
-  const getDistributorName = (id) => {
-    const dist = distributors.find(d => d._id === id);
-    return dist ? dist.name : 'Unknown';
   };
 
   const openPDF = (html) => {
@@ -326,7 +319,6 @@ function App() {
     const sortedDists = [...distributors].sort((a,b) => a.name.localeCompare(b.name));
     let rows = ''; let grandTotal = 0;
     
-    // If filtering by a specific distributor, only show that one
     const distsToShow = invoiceFilterDist === 'all' 
       ? sortedDists 
       : sortedDists.filter(d => d._id === invoiceFilterDist);
@@ -349,7 +341,6 @@ function App() {
     const sortedDists = [...distributors].sort((a,b) => a.name.localeCompare(b.name));
     let rows = ''; let grandTotal = 0;
     
-    // If filtering by a specific distributor, only show that one
     const distsToShow = paymentFilterDist === 'all' 
       ? sortedDists 
       : sortedDists.filter(d => d._id === paymentFilterDist);
@@ -384,7 +375,6 @@ function App() {
     </div>
   );
 
-  // NEW: Dropdown filter component
   const FilterDropdown = ({ value, onChange, distributors, label }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <label style={{ fontSize: 14, color: '#666', fontWeight: 500 }}>{label}:</label>
@@ -572,7 +562,7 @@ function App() {
             </div>
           )}
 
-          {/* ===== INVOICE SUMMARY (with Filter Dropdown) ===== */}
+          {/* ===== INVOICE SUMMARY ===== */}
           {view === 'invoiceSummary' && (
             <div>
               <button onClick={() => setView('dashboard')} style={btnBack}>← Back</button>
@@ -620,7 +610,6 @@ function App() {
                   <tbody>
                     {(() => {
                       const filteredOrders = getFilteredInvoiceOrders();
-                      // If filtering by specific distributor, only show that one
                       const sortedDists = [...distributors].sort((a,b) => a.name.localeCompare(b.name));
                       const distsToShow = invoiceFilterDist === 'all' 
                         ? sortedDists 
@@ -721,7 +710,7 @@ function App() {
             </div>
           )}
 
-          {/* ===== PAYMENT SUMMARY (with Filter Dropdown) ===== */}
+          {/* ===== PAYMENT SUMMARY ===== */}
           {view === 'paymentSummary' && (
             <div>
               <button onClick={() => setView('dashboard')} style={btnBack}>← Back</button>
