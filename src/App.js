@@ -31,6 +31,9 @@ function App() {
   const [distOrderSelectedIds, setDistOrderSelectedIds] = useState([]);
   const [invoiceSelectedIds, setInvoiceSelectedIds] = useState([]);
   const [paymentSummarySelectedIds, setPaymentSummarySelectedIds] = useState([]);
+  // NEW: Filter states for summary pages
+  const [invoiceFilterDist, setInvoiceFilterDist] = useState('all');
+  const [paymentFilterDist, setPaymentFilterDist] = useState('all');
 
   useEffect(() => {
     const ping = setInterval(() => {
@@ -223,7 +226,8 @@ function App() {
   };
 
   const toggleAllInvoice = (checked) => {
-    setInvoiceSelectedIds(checked ? allOrders.map(o => o._id) : []);
+    const filteredOrders = getFilteredInvoiceOrders();
+    setInvoiceSelectedIds(checked ? filteredOrders.map(o => o._id) : []);
   };
 
   const downloadSelectedInvoice = () => {
@@ -232,7 +236,6 @@ function App() {
     buildOrdersPDF('Selected Invoice Summary', selected);
   };
 
-  // NEW: Delete selected orders from Invoice Summary
   const deleteSelectedInvoiceOrders = async () => {
     if (invoiceSelectedIds.length === 0) return;
     if (!window.confirm(`Delete ${invoiceSelectedIds.length} selected order(s) from invoice summary?`)) return;
@@ -246,7 +249,8 @@ function App() {
   };
 
   const toggleAllPaymentSummary = (checked) => {
-    setPaymentSummarySelectedIds(checked ? payments.map(p => p._id) : []);
+    const filteredPayments = getFilteredPayments();
+    setPaymentSummarySelectedIds(checked ? filteredPayments.map(p => p._id) : []);
   };
 
   const downloadSelectedPaymentSummary = () => {
@@ -255,7 +259,6 @@ function App() {
     buildPaymentsPDF('Selected Payment Summary', selected);
   };
 
-  // NEW: Delete selected payments from Payment Summary
   const deleteSelectedPaymentSummary = async () => {
     if (paymentSummarySelectedIds.length === 0) return;
     if (!window.confirm(`Delete ${paymentSummarySelectedIds.length} selected payment(s) from payment summary?`)) return;
@@ -265,6 +268,28 @@ function App() {
     setPaymentSummarySelectedIds([]);
     const paymentsRes = await getPayments();
     setPayments(paymentsRes.data);
+  };
+
+  // NEW: Filter functions for summary pages
+  const getFilteredInvoiceOrders = () => {
+    if (invoiceFilterDist === 'all') return allOrders;
+    return allOrders.filter(o => {
+      const distId = o.distributorId?._id || o.distributorId;
+      return distId === invoiceFilterDist;
+    });
+  };
+
+  const getFilteredPayments = () => {
+    if (paymentFilterDist === 'all') return payments;
+    return payments.filter(p => {
+      const distId = p.distributorId?._id || p.distributorId;
+      return distId === paymentFilterDist;
+    });
+  };
+
+  const getDistributorName = (id) => {
+    const dist = distributors.find(d => d._id === id);
+    return dist ? dist.name : 'Unknown';
   };
 
   const openPDF = (html) => {
@@ -297,10 +322,17 @@ function App() {
   };
 
   const generateInvoiceSummaryPDF = () => {
+    const filteredOrders = getFilteredInvoiceOrders();
     const sortedDists = [...distributors].sort((a,b) => a.name.localeCompare(b.name));
     let rows = ''; let grandTotal = 0;
-    sortedDists.forEach(d => {
-      const distOrders = allOrders.filter(o => (o.distributorId?._id || o.distributorId) === d._id).sort((a,b) => new Date(a.date) - new Date(b.date));
+    
+    // If filtering by a specific distributor, only show that one
+    const distsToShow = invoiceFilterDist === 'all' 
+      ? sortedDists 
+      : sortedDists.filter(d => d._id === invoiceFilterDist);
+    
+    distsToShow.forEach(d => {
+      const distOrders = filteredOrders.filter(o => (o.distributorId?._id || o.distributorId) === d._id).sort((a,b) => new Date(a.date) - new Date(b.date));
       if (!distOrders.length) return;
       const dt = distOrders.reduce((s,o) => s + Number(o.amount), 0); grandTotal += dt;
       rows += `<tr><td colspan="4" style="padding:10px 8px 4px;font-weight:700;color:#3FA0E8">${d.name}</td></tr>`;
@@ -313,10 +345,17 @@ function App() {
   };
 
   const generatePaymentSummaryPDF = () => {
+    const filteredPayments = getFilteredPayments();
     const sortedDists = [...distributors].sort((a,b) => a.name.localeCompare(b.name));
     let rows = ''; let grandTotal = 0;
-    sortedDists.forEach(d => {
-      const dp = payments.filter(p => (p.distributorId?._id || p.distributorId) === d._id).sort((a,b) => new Date(a.date) - new Date(b.date));
+    
+    // If filtering by a specific distributor, only show that one
+    const distsToShow = paymentFilterDist === 'all' 
+      ? sortedDists 
+      : sortedDists.filter(d => d._id === paymentFilterDist);
+    
+    distsToShow.forEach(d => {
+      const dp = filteredPayments.filter(p => (p.distributorId?._id || p.distributorId) === d._id).sort((a,b) => new Date(a.date) - new Date(b.date));
       if (!dp.length) return;
       const dt = dp.reduce((s,p) => s + Number(p.amount), 0); grandTotal += dt;
       rows += `<tr><td colspan="3" style="padding:10px 8px 4px;font-weight:700;color:#3FA0E8">${d.name}</td></tr>`;
@@ -342,6 +381,31 @@ function App() {
   const TotalBar = ({ label, amount }) => (
     <div style={{ background: '#f0f8fe', padding: '14px 18px', borderRadius: 8, marginBottom: 16, fontWeight: 700, fontSize: 17 }}>
       {label}: <span style={{ color: '#3FA0E8' }}>Rs.{Number(amount).toLocaleString('en-IN')}</span>
+    </div>
+  );
+
+  // NEW: Dropdown filter component
+  const FilterDropdown = ({ value, onChange, distributors, label }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <label style={{ fontSize: 14, color: '#666', fontWeight: 500 }}>{label}:</label>
+      <select 
+        value={value} 
+        onChange={onChange}
+        style={{ 
+          padding: '6px 12px', 
+          borderRadius: 8, 
+          border: '1px solid #ddd', 
+          fontSize: 14,
+          background: '#fff',
+          cursor: 'pointer',
+          minWidth: 180
+        }}
+      >
+        <option value="all">All Distributors</option>
+        {[...distributors].sort((a,b) => a.name.localeCompare(b.name)).map(d => (
+          <option key={d._id} value={d._id}>{d.name}</option>
+        ))}
+      </select>
     </div>
   );
 
@@ -508,12 +572,21 @@ function App() {
             </div>
           )}
 
-          {/* ===== INVOICE SUMMARY (with Delete) ===== */}
+          {/* ===== INVOICE SUMMARY (with Filter Dropdown) ===== */}
           {view === 'invoiceSummary' && (
             <div>
               <button onClick={() => setView('dashboard')} style={btnBack}>← Back</button>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
                 <h2 style={{ margin: 0, fontSize: 24 }}>Distributor Wise Invoice Summary</h2>
+                <FilterDropdown 
+                  value={invoiceFilterDist}
+                  onChange={(e) => {
+                    setInvoiceFilterDist(e.target.value);
+                    setInvoiceSelectedIds([]);
+                  }}
+                  distributors={distributors}
+                  label="Filter"
+                />
                 <button onClick={generateInvoiceSummaryPDF} style={btnPrimary}>📄 Download All</button>
                 {invoiceSelectedIds.length > 0 && (
                   <>
@@ -526,7 +599,7 @@ function App() {
                   </>
                 )}
               </div>
-              <TotalBar label="Grand Total" amount={allOrders.reduce((s,o) => s + Number(o.amount), 0)} />
+              <TotalBar label="Grand Total" amount={getFilteredInvoiceOrders().reduce((s,o) => s + Number(o.amount), 0)} />
               <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
                 <table style={{ borderCollapse: 'collapse', fontSize: 15, whiteSpace: 'nowrap', width: 'auto' }}>
                   <thead style={{ position: 'sticky', top: 0, background: '#F0F8FE', zIndex: 1 }}>
@@ -534,7 +607,7 @@ function App() {
                       <th style={{ padding: '4px 8px', color: '#999' }}>
                         <input
                           type="checkbox"
-                          checked={invoiceSelectedIds.length === allOrders.length && allOrders.length > 0}
+                          checked={invoiceSelectedIds.length === getFilteredInvoiceOrders().length && getFilteredInvoiceOrders().length > 0}
                           onChange={(e) => toggleAllInvoice(e.target.checked)}
                           style={{ cursor: 'pointer', width: 18, height: 18 }}
                         />
@@ -546,10 +619,16 @@ function App() {
                   </thead>
                   <tbody>
                     {(() => {
+                      const filteredOrders = getFilteredInvoiceOrders();
+                      // If filtering by specific distributor, only show that one
                       const sortedDists = [...distributors].sort((a,b) => a.name.localeCompare(b.name));
+                      const distsToShow = invoiceFilterDist === 'all' 
+                        ? sortedDists 
+                        : sortedDists.filter(d => d._id === invoiceFilterDist);
+                      
                       const blocks = [];
-                      sortedDists.forEach(d => {
-                        const distOrders = allOrders.filter(o => (o.distributorId?._id || o.distributorId) === d._id).sort((a,b) => new Date(a.date) - new Date(b.date));
+                      distsToShow.forEach(d => {
+                        const distOrders = filteredOrders.filter(o => (o.distributorId?._id || o.distributorId) === d._id).sort((a,b) => new Date(a.date) - new Date(b.date));
                         if (!distOrders.length) return;
                         const distTotal = distOrders.reduce((s,o) => s + Number(o.amount), 0);
                         blocks.push(
@@ -642,12 +721,21 @@ function App() {
             </div>
           )}
 
-          {/* ===== PAYMENT SUMMARY (with Delete) ===== */}
+          {/* ===== PAYMENT SUMMARY (with Filter Dropdown) ===== */}
           {view === 'paymentSummary' && (
             <div>
               <button onClick={() => setView('dashboard')} style={btnBack}>← Back</button>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
                 <h2 style={{ margin: 0, fontSize: 24 }}>Distributor Payment Summary</h2>
+                <FilterDropdown 
+                  value={paymentFilterDist}
+                  onChange={(e) => {
+                    setPaymentFilterDist(e.target.value);
+                    setPaymentSummarySelectedIds([]);
+                  }}
+                  distributors={distributors}
+                  label="Filter"
+                />
                 <button onClick={generatePaymentSummaryPDF} style={btnPrimary}>📄 Download All</button>
                 {paymentSummarySelectedIds.length > 0 && (
                   <>
@@ -660,7 +748,7 @@ function App() {
                   </>
                 )}
               </div>
-              <TotalBar label="Grand Total" amount={totalAllPayments} />
+              <TotalBar label="Grand Total" amount={getFilteredPayments().reduce((s,p) => s + Number(p.amount), 0)} />
               <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
                 <table style={{ borderCollapse: 'collapse', fontSize: 15, whiteSpace: 'nowrap', width: 'auto' }}>
                   <thead style={{ position: 'sticky', top: 0, background: '#F0F8FE', zIndex: 1 }}>
@@ -668,7 +756,7 @@ function App() {
                       <th style={{ padding: '4px 8px', color: '#999' }}>
                         <input
                           type="checkbox"
-                          checked={paymentSummarySelectedIds.length === payments.length && payments.length > 0}
+                          checked={paymentSummarySelectedIds.length === getFilteredPayments().length && getFilteredPayments().length > 0}
                           onChange={(e) => toggleAllPaymentSummary(e.target.checked)}
                           style={{ cursor: 'pointer', width: 18, height: 18 }}
                         />
@@ -679,10 +767,15 @@ function App() {
                   </thead>
                   <tbody>
                     {(() => {
+                      const filteredPayments = getFilteredPayments();
                       const sortedDists = [...distributors].sort((a,b) => a.name.localeCompare(b.name));
+                      const distsToShow = paymentFilterDist === 'all' 
+                        ? sortedDists 
+                        : sortedDists.filter(d => d._id === paymentFilterDist);
+                      
                       const blocks = [];
-                      sortedDists.forEach(d => {
-                        const dp = payments.filter(p => (p.distributorId?._id || p.distributorId) === d._id).sort((a,b) => new Date(a.date) - new Date(b.date));
+                      distsToShow.forEach(d => {
+                        const dp = filteredPayments.filter(p => (p.distributorId?._id || p.distributorId) === d._id).sort((a,b) => new Date(a.date) - new Date(b.date));
                         if (!dp.length) return;
                         const dt = dp.reduce((s,p) => s + Number(p.amount), 0);
                         blocks.push(
