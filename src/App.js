@@ -193,6 +193,52 @@ function App() {
     setIdList(idList.includes(id) ? idList.filter(x => x !== id) : [...idList, id]);
   };
 
+  // NEW: Toggle all items for a specific distributor
+  const toggleDistributorOrders = (distributorId, checked) => {
+    const ordersForDist = getFilteredInvoiceOrders().filter(o => {
+      const distId = o.distributorId?._id || o.distributorId;
+      return distId === distributorId;
+    });
+    const orderIds = ordersForDist.map(o => o._id);
+    if (checked) {
+      setInvoiceSelectedIds(prev => [...new Set([...prev, ...orderIds])]);
+    } else {
+      setInvoiceSelectedIds(prev => prev.filter(id => !orderIds.includes(id)));
+    }
+  };
+
+  const toggleDistributorPayments = (distributorId, checked) => {
+    const paymentsForDist = getFilteredPayments().filter(p => {
+      const distId = p.distributorId?._id || p.distributorId;
+      return distId === distributorId;
+    });
+    const paymentIds = paymentsForDist.map(p => p._id);
+    if (checked) {
+      setPaymentSummarySelectedIds(prev => [...new Set([...prev, ...paymentIds])]);
+    } else {
+      setPaymentSummarySelectedIds(prev => prev.filter(id => !paymentIds.includes(id)));
+    }
+  };
+
+  // Check if all orders for a distributor are selected
+  const areAllDistributorOrdersSelected = (distributorId) => {
+    const ordersForDist = getFilteredInvoiceOrders().filter(o => {
+      const distId = o.distributorId?._id || o.distributorId;
+      return distId === distributorId;
+    });
+    if (ordersForDist.length === 0) return false;
+    return ordersForDist.every(o => invoiceSelectedIds.includes(o._id));
+  };
+
+  const areAllDistributorPaymentsSelected = (distributorId) => {
+    const paymentsForDist = getFilteredPayments().filter(p => {
+      const distId = p.distributorId?._id || p.distributorId;
+      return distId === distributorId;
+    });
+    if (paymentsForDist.length === 0) return false;
+    return paymentsForDist.every(p => paymentSummarySelectedIds.includes(p._id));
+  };
+
   const toggleAllOrders = (checked) => {
     setSelectedOrderIds(checked ? allOrders.map(o => o._id) : []);
   };
@@ -562,7 +608,7 @@ function App() {
             </div>
           )}
 
-          {/* ===== INVOICE SUMMARY ===== */}
+          {/* ===== INVOICE SUMMARY with Distributor Level Selection ===== */}
           {view === 'invoiceSummary' && (
             <div>
               <button onClick={() => setView('dashboard')} style={btnBack}>← Back</button>
@@ -594,7 +640,7 @@ function App() {
                 <table style={{ borderCollapse: 'collapse', fontSize: 15, whiteSpace: 'nowrap', width: 'auto' }}>
                   <thead style={{ position: 'sticky', top: 0, background: '#F0F8FE', zIndex: 1 }}>
                     <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
-                      <th style={{ padding: '4px 8px', color: '#999' }}>
+                      <th style={{ padding: '4px 8px', color: '#999', width: '30px' }}>
                         <input
                           type="checkbox"
                           checked={invoiceSelectedIds.length === getFilteredInvoiceOrders().length && getFilteredInvoiceOrders().length > 0}
@@ -620,9 +666,18 @@ function App() {
                         const distOrders = filteredOrders.filter(o => (o.distributorId?._id || o.distributorId) === d._id).sort((a,b) => new Date(a.date) - new Date(b.date));
                         if (!distOrders.length) return;
                         const distTotal = distOrders.reduce((s,o) => s + Number(o.amount), 0);
+                        const allSelected = areAllDistributorOrdersSelected(d._id);
                         blocks.push(
                           <tr key={`h-${d._id}`}>
-                            <td colSpan={4} style={{ padding: '6px 8px 3px', fontWeight: 700, fontSize: 16, color: '#3FA0E8' }}>{d.name}</td>
+                            <td colSpan={4} style={{ padding: '6px 8px 3px', fontWeight: 700, fontSize: 16, color: '#3FA0E8' }}>
+                              <input
+                                type="checkbox"
+                                checked={allSelected}
+                                onChange={(e) => toggleDistributorOrders(d._id, e.target.checked)}
+                                style={{ cursor: 'pointer', width: 18, height: 18, marginRight: 10 }}
+                              />
+                              {d.name}
+                            </td>
                           </tr>
                         );
                         distOrders.forEach(o => {
@@ -710,7 +765,7 @@ function App() {
             </div>
           )}
 
-          {/* ===== PAYMENT SUMMARY ===== */}
+          {/* ===== PAYMENT SUMMARY with Distributor Level Selection ===== */}
           {view === 'paymentSummary' && (
             <div>
               <button onClick={() => setView('dashboard')} style={btnBack}>← Back</button>
@@ -742,7 +797,7 @@ function App() {
                 <table style={{ borderCollapse: 'collapse', fontSize: 15, whiteSpace: 'nowrap', width: 'auto' }}>
                   <thead style={{ position: 'sticky', top: 0, background: '#F0F8FE', zIndex: 1 }}>
                     <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
-                      <th style={{ padding: '4px 8px', color: '#999' }}>
+                      <th style={{ padding: '4px 8px', color: '#999', width: '30px' }}>
                         <input
                           type="checkbox"
                           checked={paymentSummarySelectedIds.length === getFilteredPayments().length && getFilteredPayments().length > 0}
@@ -767,9 +822,18 @@ function App() {
                         const dp = filteredPayments.filter(p => (p.distributorId?._id || p.distributorId) === d._id).sort((a,b) => new Date(a.date) - new Date(b.date));
                         if (!dp.length) return;
                         const dt = dp.reduce((s,p) => s + Number(p.amount), 0);
+                        const allSelected = areAllDistributorPaymentsSelected(d._id);
                         blocks.push(
                           <tr key={`h-${d._id}`}>
-                            <td colSpan={3} style={{ padding: '6px 8px 3px', fontWeight: 700, fontSize: 16, color: '#3FA0E8' }}>{d.name}</td>
+                            <td colSpan={3} style={{ padding: '6px 8px 3px', fontWeight: 700, fontSize: 16, color: '#3FA0E8' }}>
+                              <input
+                                type="checkbox"
+                                checked={allSelected}
+                                onChange={(e) => toggleDistributorPayments(d._id, e.target.checked)}
+                                style={{ cursor: 'pointer', width: 18, height: 18, marginRight: 10 }}
+                              />
+                              {d.name}
+                            </td>
                           </tr>
                         );
                         dp.forEach(p => {
