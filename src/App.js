@@ -285,8 +285,9 @@ function App() {
   const deleteSelectedOrders = async () => {
     if (selectedOrderIds.length === 0) return;
     if (!window.confirm(`Delete ${selectedOrderIds.length} selected order(s)?`)) return;
+    const idsToDelete = [...selectedOrderIds];
     let deletedCount = 0;
-    for (const id of selectedOrderIds) {
+    for (const id of idsToDelete) {
       try {
         await deleteOrder(id);
         deletedCount++;
@@ -298,7 +299,7 @@ function App() {
     const allOrdersRes = await getOrders();
     setAllOrders(allOrdersRes.data);
     if (selectedDist) fetchOrders(selectedDist._id);
-    alert(`Deleted ${deletedCount} of ${selectedOrderIds.length} selected order(s).`);
+    alert(`Deleted ${deletedCount} of ${idsToDelete.length} selected order(s).`);
   };
 
   const toggleAllPayments = (checked) => {
@@ -308,8 +309,9 @@ function App() {
   const deleteSelectedPayments = async () => {
     if (selectedPaymentIds.length === 0) return;
     if (!window.confirm(`Delete ${selectedPaymentIds.length} selected payment(s)?`)) return;
+    const idsToDelete = [...selectedPaymentIds];
     let deletedCount = 0;
-    for (const id of selectedPaymentIds) {
+    for (const id of idsToDelete) {
       try {
         await deletePayment(id);
         deletedCount++;
@@ -320,7 +322,7 @@ function App() {
     setSelectedPaymentIds([]);
     const paymentsRes = await getPayments();
     setPayments(paymentsRes.data);
-    alert(`Deleted ${deletedCount} of ${selectedPaymentIds.length} selected payment(s).`);
+    alert(`Deleted ${deletedCount} of ${idsToDelete.length} selected payment(s).`);
   };
 
   const toggleAllInvoice = (checked) => {
@@ -334,52 +336,49 @@ function App() {
     buildInvoiceSummaryPDF('Selected Invoice Summary', selected);
   };
 
-  // FIXED: Delete selected orders from Invoice Summary with proper filtering
+  // FIXED: Delete selected orders from Invoice Summary with sequential deletion
   const deleteSelectedInvoiceOrders = async () => {
     if (invoiceSelectedIds.length === 0) {
       alert('No orders selected to delete.');
       return;
     }
     
-    // Get the currently filtered orders to validate selections
-    const filteredOrders = getFilteredInvoiceOrders();
-    const validSelectedIds = invoiceSelectedIds.filter(id => 
-      filteredOrders.some(o => o._id === id)
-    );
+    // Get the currently selected IDs
+    const idsToDelete = [...invoiceSelectedIds];
     
-    if (validSelectedIds.length === 0) {
-      alert('No valid orders selected to delete. The selected orders may have already been deleted.');
-      return;
-    }
-    
-    if (!window.confirm(`Delete ${validSelectedIds.length} selected order(s) from the current view?`)) return;
+    if (!window.confirm(`Delete ${idsToDelete.length} selected order(s)?`)) return;
     
     let deletedCount = 0;
     let failedCount = 0;
+    const failedIds = [];
     
-    for (const id of validSelectedIds) {
+    // Delete each order one by one
+    for (const id of idsToDelete) {
       try {
         await deleteOrder(id);
         deletedCount++;
+        // Remove the deleted ID from selection
+        setInvoiceSelectedIds(prev => prev.filter(pid => pid !== id));
       } catch (err) {
         console.error('Failed to delete order:', id, err);
         failedCount++;
+        failedIds.push(id);
       }
     }
     
-    // Clear selections
-    setInvoiceSelectedIds([]);
-    
-    // Refresh data
+    // After all deletions, refresh the data
     const allOrdersRes = await getOrders();
     setAllOrders(allOrdersRes.data);
     if (selectedDist) fetchOrders(selectedDist._id);
     
+    // Clear any remaining selections
+    setInvoiceSelectedIds([]);
+    
     // Show feedback
     if (failedCount > 0) {
-      alert(`Deleted ${deletedCount} orders. Failed to delete ${failedCount} orders.`);
+      alert(`⚠️ Deleted ${deletedCount} orders.\n❌ Failed to delete ${failedCount} orders.\n\nFailed IDs: ${failedIds.join(', ')}`);
     } else {
-      alert(`Successfully deleted ${deletedCount} order(s).`);
+      alert(`✅ Successfully deleted ${deletedCount} order(s).`);
     }
   };
 
@@ -394,51 +393,48 @@ function App() {
     buildPaymentSummaryPDF('Selected Payment Summary', selected);
   };
 
-  // FIXED: Delete selected payments from Payment Summary with proper filtering
+  // FIXED: Delete selected payments from Payment Summary with sequential deletion
   const deleteSelectedPaymentSummary = async () => {
     if (paymentSummarySelectedIds.length === 0) {
       alert('No payments selected to delete.');
       return;
     }
     
-    // Get the currently filtered payments to validate selections
-    const filteredPayments = getFilteredPayments();
-    const validSelectedIds = paymentSummarySelectedIds.filter(id => 
-      filteredPayments.some(p => p._id === id)
-    );
+    // Get the currently selected IDs
+    const idsToDelete = [...paymentSummarySelectedIds];
     
-    if (validSelectedIds.length === 0) {
-      alert('No valid payments selected to delete. The selected payments may have already been deleted.');
-      return;
-    }
-    
-    if (!window.confirm(`Delete ${validSelectedIds.length} selected payment(s) from the current view?`)) return;
+    if (!window.confirm(`Delete ${idsToDelete.length} selected payment(s)?`)) return;
     
     let deletedCount = 0;
     let failedCount = 0;
+    const failedIds = [];
     
-    for (const id of validSelectedIds) {
+    // Delete each payment one by one
+    for (const id of idsToDelete) {
       try {
         await deletePayment(id);
         deletedCount++;
+        // Remove the deleted ID from selection
+        setPaymentSummarySelectedIds(prev => prev.filter(pid => pid !== id));
       } catch (err) {
         console.error('Failed to delete payment:', id, err);
         failedCount++;
+        failedIds.push(id);
       }
     }
     
-    // Clear selections
-    setPaymentSummarySelectedIds([]);
-    
-    // Refresh data
+    // After all deletions, refresh the data
     const paymentsRes = await getPayments();
     setPayments(paymentsRes.data);
     
+    // Clear any remaining selections
+    setPaymentSummarySelectedIds([]);
+    
     // Show feedback
     if (failedCount > 0) {
-      alert(`Deleted ${deletedCount} payments. Failed to delete ${failedCount} payments.`);
+      alert(`⚠️ Deleted ${deletedCount} payments.\n❌ Failed to delete ${failedCount} payments.\n\nFailed IDs: ${failedIds.join(', ')}`);
     } else {
-      alert(`Successfully deleted ${deletedCount} payment(s).`);
+      alert(`✅ Successfully deleted ${deletedCount} payment(s).`);
     }
   };
 
@@ -675,8 +671,6 @@ function App() {
     );
   }
 
-  // Main return with all views - keeping this section as is from the previous code
-  // The main changes are in the delete functions above
   return (
     <div style={{ fontFamily: 'sans-serif', display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
       <div style={{ background: '#3FA0E8', padding: '0 24px', height: 60, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
