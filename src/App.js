@@ -33,8 +33,9 @@ function App() {
   const [paymentSummarySelectedIds, setPaymentSummarySelectedIds] = useState([]);
   const [invoiceFilterDist, setInvoiceFilterDist] = useState('all');
   const [paymentFilterDist, setPaymentFilterDist] = useState('all');
-  // NEW: Month filter for dashboard
-  const [selectedMonth, setSelectedMonth] = useState('all');
+  // NEW: Month filter for summary pages
+  const [invoiceMonthFilter, setInvoiceMonthFilter] = useState('all');
+  const [paymentMonthFilter, setPaymentMonthFilter] = useState('all');
 
   useEffect(() => {
     const ping = setInterval(() => {
@@ -49,7 +50,6 @@ function App() {
 
   // Auto-deselect when view changes
   useEffect(() => {
-    // Deselect all selections when changing views
     setSelectedOrderIds([]);
     setSelectedPaymentIds([]);
     setDistOrderSelectedIds([]);
@@ -187,9 +187,9 @@ function App() {
   };
 
   // NEW: Filter orders by month
-  const getOrdersByMonth = (ordersList) => {
-    if (selectedMonth === 'all') return ordersList;
-    const [year, month] = selectedMonth.split('-');
+  const filterOrdersByMonth = (ordersList, monthFilter) => {
+    if (monthFilter === 'all') return ordersList;
+    const [year, month] = monthFilter.split('-');
     return ordersList.filter(o => {
       const date = new Date(o.date);
       return date.getFullYear() === parseInt(year) && date.getMonth() === parseInt(month) - 1;
@@ -197,9 +197,9 @@ function App() {
   };
 
   // NEW: Filter payments by month
-  const getPaymentsByMonth = (paymentsList) => {
-    if (selectedMonth === 'all') return paymentsList;
-    const [year, month] = selectedMonth.split('-');
+  const filterPaymentsByMonth = (paymentsList, monthFilter) => {
+    if (monthFilter === 'all') return paymentsList;
+    const [year, month] = monthFilter.split('-');
     return paymentsList.filter(p => {
       const date = new Date(p.date);
       return date.getFullYear() === parseInt(year) && date.getMonth() === parseInt(month) - 1;
@@ -207,29 +207,25 @@ function App() {
   };
 
   // NEW: Get available months from data
-  const getAvailableMonths = () => {
+  const getAvailableMonths = (ordersList, paymentsList) => {
     const months = new Set();
-    allOrders.forEach(o => {
+    ordersList.forEach(o => {
       const date = new Date(o.date);
       months.add(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
     });
-    payments.forEach(p => {
+    paymentsList.forEach(p => {
       const date = new Date(p.date);
       months.add(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
     });
     return Array.from(months).sort();
   };
 
-  const totalFor = (id) => {
-    const filteredOrders = getOrdersByMonth(allOrders);
-    return filteredOrders.filter(o => {
-      const distId = o.distributorId?._id || o.distributorId;
-      return distId === id;
-    }).reduce((s,o) => s + o.amount, 0);
-  };
+  const totalFor = (id) => allOrders.filter(o => {
+    const distId = o.distributorId?._id || o.distributorId;
+    return distId === id;
+  }).reduce((s,o) => s + o.amount, 0);
 
-  const totalAllPayments = getPaymentsByMonth(payments).reduce((s,p) => s + Number(p.amount), 0);
-  const totalAllOrders = getOrdersByMonth(allOrders).reduce((s,o) => s + Number(o.amount), 0);
+  const totalAllPayments = payments.reduce((s,p) => s + Number(p.amount), 0);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
@@ -363,26 +359,78 @@ function App() {
     setPayments(paymentsRes.data);
   };
 
+  // NEW: Get filtered orders for Invoice Summary with month filter
   const getFilteredInvoiceOrders = () => {
     let orders = allOrders;
+    
+    // Apply distributor filter
     if (invoiceFilterDist !== 'all') {
       orders = orders.filter(o => {
         const distId = o.distributorId?._id || o.distributorId;
         return distId === invoiceFilterDist;
       });
     }
+    
+    // Apply month filter
+    orders = filterOrdersByMonth(orders, invoiceMonthFilter);
+    
     return orders;
   };
 
+  // NEW: Get filtered payments for Payment Summary with month filter
   const getFilteredPayments = () => {
     let paymentsList = payments;
+    
+    // Apply distributor filter
     if (paymentFilterDist !== 'all') {
       paymentsList = paymentsList.filter(p => {
         const distId = p.distributorId?._id || p.distributorId;
         return distId === paymentFilterDist;
       });
     }
+    
+    // Apply month filter
+    paymentsList = filterPaymentsByMonth(paymentsList, paymentMonthFilter);
+    
     return paymentsList;
+  };
+
+  // NEW: Month filter dropdown component
+  const MonthFilterDropdown = ({ value, onChange, orders, payments, label }) => {
+    const availableMonths = getAvailableMonths(orders, payments);
+    const monthNames = {
+      '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'May', '06': 'Jun',
+      '07': 'Jul', '08': 'Aug', '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'
+    };
+
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <label style={{ fontSize: 14, color: '#666', fontWeight: 500 }}>{label}:</label>
+        <select 
+          value={value} 
+          onChange={onChange}
+          style={{ 
+            padding: '6px 12px', 
+            borderRadius: 8, 
+            border: '1px solid #ddd', 
+            fontSize: 14,
+            background: '#fff',
+            cursor: 'pointer',
+            minWidth: 150
+          }}
+        >
+          <option value="all">All Months</option>
+          {availableMonths.map(month => {
+            const [year, monthNum] = month.split('-');
+            return (
+              <option key={month} value={month}>
+                {monthNames[monthNum]} {year}
+              </option>
+            );
+          })}
+        </select>
+      </div>
+    );
   };
 
   const openPDF = (html) => {
@@ -458,12 +506,25 @@ function App() {
 
   const generateInvoiceSummaryPDF = () => {
     const filteredOrders = getFilteredInvoiceOrders();
-    buildInvoiceSummaryPDF('Distributor Wise Invoice Summary', filteredOrders);
+    const monthLabel = invoiceMonthFilter === 'all' ? 'All Months' : getMonthLabel(invoiceMonthFilter);
+    buildInvoiceSummaryPDF(`Distributor Wise Invoice Summary - ${monthLabel}`, filteredOrders);
   };
 
   const generatePaymentSummaryPDF = () => {
     const filteredPayments = getFilteredPayments();
-    buildPaymentSummaryPDF('Distributor Payment Summary', filteredPayments);
+    const monthLabel = paymentMonthFilter === 'all' ? 'All Months' : getMonthLabel(paymentMonthFilter);
+    buildPaymentSummaryPDF(`Distributor Payment Summary - ${monthLabel}`, filteredPayments);
+  };
+
+  // NEW: Helper to get month label
+  const getMonthLabel = (monthValue) => {
+    const monthNames = {
+      '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'May', '06': 'Jun',
+      '07': 'Jul', '08': 'Aug', '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'
+    };
+    if (monthValue === 'all') return 'All Months';
+    const [year, monthNum] = monthValue.split('-');
+    return `${monthNames[monthNum]} ${year}`;
   };
 
   const filteredDists = distributors
@@ -476,55 +537,6 @@ function App() {
       <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m5 0V4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v2"></path>
     </svg>
   );
-
-  // NEW: Dashboard card with month filter
-  const DashboardCard = ({ title, value, onClick, color, isClickable }) => {
-    const availableMonths = getAvailableMonths();
-    const monthNames = {
-      '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'May', '06': 'Jun',
-      '07': 'Jul', '08': 'Aug', '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'
-    };
-
-    return (
-      <div style={{ background: '#f0f0f0', borderRadius: 10, padding: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <div style={{ fontSize: 14, color: '#666' }}>{title}</div>
-          {availableMonths.length > 0 && (
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              style={{
-                padding: '2px 6px',
-                borderRadius: 4,
-                border: '1px solid #ccc',
-                fontSize: 11,
-                background: '#fff',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="all">All</option>
-              {availableMonths.map(month => {
-                const [year, monthNum] = month.split('-');
-                return (
-                  <option key={month} value={month}>
-                    {monthNames[monthNum]} {year}
-                  </option>
-                );
-              })}
-            </select>
-          )}
-        </div>
-        {isClickable ? (
-          <div onClick={onClick} style={{ cursor: 'pointer' }}>
-            <div style={{ fontSize: 26, fontWeight: 700 }}>{value}</div>
-            <div style={{ fontSize: 11, color: '#3FA0E8', marginTop: 4 }}>Click to view →</div>
-          </div>
-        ) : (
-          <div style={{ fontSize: 26, fontWeight: 700 }}>{value}</div>
-        )}
-      </div>
-    );
-  };
 
   const TotalBar = ({ label, amount }) => (
     <div style={{ background: '#f0f8fe', padding: '14px 18px', borderRadius: 8, marginBottom: 16, fontWeight: 700, fontSize: 17 }}>
@@ -632,57 +644,45 @@ function App() {
               <div style={{ flexShrink: 0 }}>
                 <h2 style={{ margin: '0 0 24px 0', paddingTop: 28, fontSize: 26 }}>Dashboard</h2>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 14, marginBottom: 24 }}>
-                  <DashboardCard 
-                    title="Distributors" 
-                    value={distributors.length} 
-                    isClickable={false}
-                  />
-                  <DashboardCard 
-                    title="All Purchases" 
-                    value={totalAllOrders.toLocaleString('en-IN')}
-                    onClick={() => setView('allOrders')}
-                    isClickable={true}
-                    color="#3FA0E8"
-                  />
-                  <DashboardCard 
-                    title="Dist Wise Invoice Summary" 
-                    value="View"
-                    onClick={() => setView('invoiceSummary')}
-                    isClickable={true}
-                    color="#3FA0E8"
-                  />
-                  <DashboardCard 
-                    title="Distributor Payment" 
-                    value={totalAllPayments.toLocaleString('en-IN')}
-                    onClick={() => setView('payments')}
-                    isClickable={true}
-                    color="#3FA0E8"
-                  />
-                  <DashboardCard 
-                    title="Dist Payment Summary" 
-                    value="View"
-                    onClick={() => setView('paymentSummary')}
-                    isClickable={true}
-                    color="#3FA0E8"
-                  />
+                  <div style={{ background: '#f0f0f0', borderRadius: 10, padding: 16 }}>
+                    <div style={{ fontSize: 14, color: '#666' }}>Distributors</div>
+                    <div style={{ fontSize: 26, fontWeight: 700 }}>{distributors.length}</div>
+                  </div>
+                  <div onClick={() => setView('allOrders')} style={{ background: '#f0f0f0', borderRadius: 10, padding: 16, cursor: 'pointer' }}>
+                    <div style={{ fontSize: 14, color: '#666' }}>All Purchases</div>
+                    <div style={{ fontSize: 20, fontWeight: 700 }}>View</div>
+                    <div style={{ fontSize: 11, color: '#3FA0E8', marginTop: 4 }}>Click to view →</div>
+                  </div>
+                  <div onClick={() => setView('invoiceSummary')} style={{ background: '#f0f0f0', borderRadius: 10, padding: 16, cursor: 'pointer' }}>
+                    <div style={{ fontSize: 14, color: '#666' }}>Dist Wise Invoice Summary</div>
+                    <div style={{ fontSize: 20, fontWeight: 700 }}>View</div>
+                    <div style={{ fontSize: 11, color: '#3FA0E8', marginTop: 4 }}>Click to open →</div>
+                  </div>
+                  <div onClick={() => setView('payments')} style={{ background: '#f0f0f0', borderRadius: 10, padding: 16, cursor: 'pointer' }}>
+                    <div style={{ fontSize: 14, color: '#666' }}>Distributor Payment</div>
+                    <div style={{ fontSize: 20, fontWeight: 700 }}>View</div>
+                    <div style={{ fontSize: 11, color: '#3FA0E8', marginTop: 4 }}>Click to view →</div>
+                  </div>
+                  <div onClick={() => setView('paymentSummary')} style={{ background: '#f0f0f0', borderRadius: 10, padding: 16, cursor: 'pointer' }}>
+                    <div style={{ fontSize: 14, color: '#666' }}>Dist Payment Summary</div>
+                    <div style={{ fontSize: 20, fontWeight: 700 }}>View</div>
+                    <div style={{ fontSize: 11, color: '#3FA0E8', marginTop: 4 }}>Click to open →</div>
+                  </div>
                 </div>
                 <h3 style={{ fontSize: 20 }}>All Distributors</h3>
               </div>
               <div style={{ flex: 1, overflowY: 'auto' }}>
-                {[...distributors].sort((a,b) => a.name.localeCompare(b.name)).map((d, idx) => {
-                  const distTotal = totalFor(d._id);
-                  return (
-                    <div key={d._id} onClick={() => { setSelectedDist(d); setView('distributor'); fetchOrders(d._id); setDistOrderSelectedIds([]); }}
-                      style={{ padding: 16, border: '2px solid #97c1E6', borderRadius: 10, marginBottom: 10, cursor: 'pointer', background: '#fff', display: 'flex', gap: 12 }}>
-                      <div style={{ fontWeight: 700, color: '#3FA0E8', minWidth: 30, fontSize: 16 }}>{idx + 1}.</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 600, fontSize: 16 }}>{d.name}</div>
-                        <div style={{ fontSize: 14, color: '#666' }}>{d.phone} · {d.address}</div>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: '#3FA0E8', marginTop: 4 }}>Rs.{distTotal.toLocaleString('en-IN')}</div>
-                      </div>
+                {[...distributors].sort((a,b) => a.name.localeCompare(b.name)).map((d, idx) => (
+                  <div key={d._id} onClick={() => { setSelectedDist(d); setView('distributor'); fetchOrders(d._id); setDistOrderSelectedIds([]); }}
+                    style={{ padding: 16, border: '2px solid #97c1E6', borderRadius: 10, marginBottom: 10, cursor: 'pointer', background: '#fff', display: 'flex', gap: 12 }}>
+                    <div style={{ fontWeight: 700, color: '#3FA0E8', minWidth: 30, fontSize: 16 }}>{idx + 1}.</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 16 }}>{d.name}</div>
+                      <div style={{ fontSize: 14, color: '#666' }}>{d.phone} · {d.address}</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: '#3FA0E8', marginTop: 4 }}>Rs.{totalFor(d._id).toLocaleString('en-IN')}</div>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -731,12 +731,22 @@ function App() {
             </div>
           )}
 
-          {/* ===== INVOICE SUMMARY ===== */}
+          {/* ===== INVOICE SUMMARY with Month Filter ===== */}
           {view === 'invoiceSummary' && (
             <div>
               <button onClick={() => setView('dashboard')} style={btnBack}>← Back</button>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
                 <h2 style={{ margin: 0, fontSize: 24 }}>Distributor Wise Invoice Summary</h2>
+                <MonthFilterDropdown 
+                  value={invoiceMonthFilter}
+                  onChange={(e) => {
+                    setInvoiceMonthFilter(e.target.value);
+                    setInvoiceSelectedIds([]);
+                  }}
+                  orders={allOrders}
+                  payments={payments}
+                  label="Month"
+                />
                 <FilterDropdown 
                   value={invoiceFilterDist}
                   onChange={(e) => {
@@ -744,9 +754,9 @@ function App() {
                     setInvoiceSelectedIds([]);
                   }}
                   distributors={distributors}
-                  label="Filter"
+                  label="Distributor"
                 />
-                <button onClick={generateInvoiceSummaryPDF} style={btnPrimary}>📄 Download All</button>
+                <button onClick={generateInvoiceSummaryPDF} style={btnPrimary}>📄 Download PDF</button>
                 {invoiceSelectedIds.length > 0 && (
                   <>
                     <button onClick={downloadSelectedInvoice} style={btnOutline}>
@@ -888,12 +898,22 @@ function App() {
             </div>
           )}
 
-          {/* ===== PAYMENT SUMMARY ===== */}
+          {/* ===== PAYMENT SUMMARY with Month Filter ===== */}
           {view === 'paymentSummary' && (
             <div>
               <button onClick={() => setView('dashboard')} style={btnBack}>← Back</button>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
                 <h2 style={{ margin: 0, fontSize: 24 }}>Distributor Payment Summary</h2>
+                <MonthFilterDropdown 
+                  value={paymentMonthFilter}
+                  onChange={(e) => {
+                    setPaymentMonthFilter(e.target.value);
+                    setPaymentSummarySelectedIds([]);
+                  }}
+                  orders={allOrders}
+                  payments={payments}
+                  label="Month"
+                />
                 <FilterDropdown 
                   value={paymentFilterDist}
                   onChange={(e) => {
@@ -901,9 +921,9 @@ function App() {
                     setPaymentSummarySelectedIds([]);
                   }}
                   distributors={distributors}
-                  label="Filter"
+                  label="Distributor"
                 />
-                <button onClick={generatePaymentSummaryPDF} style={btnPrimary}>📄 Download All</button>
+                <button onClick={generatePaymentSummaryPDF} style={btnPrimary}>📄 Download PDF</button>
                 {paymentSummarySelectedIds.length > 0 && (
                   <>
                     <button onClick={downloadSelectedPaymentSummary} style={btnOutline}>
