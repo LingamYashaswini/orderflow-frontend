@@ -33,7 +33,6 @@ function App() {
   const [paymentSummarySelectedIds, setPaymentSummarySelectedIds] = useState([]);
   const [invoiceFilterDist, setInvoiceFilterDist] = useState('all');
   const [paymentFilterDist, setPaymentFilterDist] = useState('all');
-  // NEW: Month filter for summary pages
   const [invoiceMonthFilter, setInvoiceMonthFilter] = useState('all');
   const [paymentMonthFilter, setPaymentMonthFilter] = useState('all');
 
@@ -48,7 +47,6 @@ function App() {
     if (selectedDist) fetchOrders(selectedDist._id);
   }, [selectedDist]);
 
-  // Auto-deselect when view changes
   useEffect(() => {
     setSelectedOrderIds([]);
     setSelectedPaymentIds([]);
@@ -186,7 +184,6 @@ function App() {
     setModal('order');
   };
 
-  // NEW: Filter orders by month
   const filterOrdersByMonth = (ordersList, monthFilter) => {
     if (monthFilter === 'all') return ordersList;
     const [year, month] = monthFilter.split('-');
@@ -196,7 +193,6 @@ function App() {
     });
   };
 
-  // NEW: Filter payments by month
   const filterPaymentsByMonth = (paymentsList, monthFilter) => {
     if (monthFilter === 'all') return paymentsList;
     const [year, month] = monthFilter.split('-');
@@ -206,7 +202,6 @@ function App() {
     });
   };
 
-  // NEW: Get available months from data
   const getAvailableMonths = (ordersList, paymentsList) => {
     const months = new Set();
     ordersList.forEach(o => {
@@ -290,13 +285,20 @@ function App() {
   const deleteSelectedOrders = async () => {
     if (selectedOrderIds.length === 0) return;
     if (!window.confirm(`Delete ${selectedOrderIds.length} selected order(s)?`)) return;
+    let deletedCount = 0;
     for (const id of selectedOrderIds) {
-      await deleteOrder(id);
+      try {
+        await deleteOrder(id);
+        deletedCount++;
+      } catch (err) {
+        console.error('Failed to delete order:', id, err);
+      }
     }
     setSelectedOrderIds([]);
     const allOrdersRes = await getOrders();
     setAllOrders(allOrdersRes.data);
     if (selectedDist) fetchOrders(selectedDist._id);
+    alert(`Deleted ${deletedCount} of ${selectedOrderIds.length} selected order(s).`);
   };
 
   const toggleAllPayments = (checked) => {
@@ -306,12 +308,19 @@ function App() {
   const deleteSelectedPayments = async () => {
     if (selectedPaymentIds.length === 0) return;
     if (!window.confirm(`Delete ${selectedPaymentIds.length} selected payment(s)?`)) return;
+    let deletedCount = 0;
     for (const id of selectedPaymentIds) {
-      await deletePayment(id);
+      try {
+        await deletePayment(id);
+        deletedCount++;
+      } catch (err) {
+        console.error('Failed to delete payment:', id, err);
+      }
     }
     setSelectedPaymentIds([]);
     const paymentsRes = await getPayments();
     setPayments(paymentsRes.data);
+    alert(`Deleted ${deletedCount} of ${selectedPaymentIds.length} selected payment(s).`);
   };
 
   const toggleAllInvoice = (checked) => {
@@ -325,16 +334,53 @@ function App() {
     buildInvoiceSummaryPDF('Selected Invoice Summary', selected);
   };
 
+  // FIXED: Delete selected orders from Invoice Summary with proper filtering
   const deleteSelectedInvoiceOrders = async () => {
-    if (invoiceSelectedIds.length === 0) return;
-    if (!window.confirm(`Delete ${invoiceSelectedIds.length} selected order(s) from invoice summary?`)) return;
-    for (const id of invoiceSelectedIds) {
-      await deleteOrder(id);
+    if (invoiceSelectedIds.length === 0) {
+      alert('No orders selected to delete.');
+      return;
     }
+    
+    // Get the currently filtered orders to validate selections
+    const filteredOrders = getFilteredInvoiceOrders();
+    const validSelectedIds = invoiceSelectedIds.filter(id => 
+      filteredOrders.some(o => o._id === id)
+    );
+    
+    if (validSelectedIds.length === 0) {
+      alert('No valid orders selected to delete. The selected orders may have already been deleted.');
+      return;
+    }
+    
+    if (!window.confirm(`Delete ${validSelectedIds.length} selected order(s) from the current view?`)) return;
+    
+    let deletedCount = 0;
+    let failedCount = 0;
+    
+    for (const id of validSelectedIds) {
+      try {
+        await deleteOrder(id);
+        deletedCount++;
+      } catch (err) {
+        console.error('Failed to delete order:', id, err);
+        failedCount++;
+      }
+    }
+    
+    // Clear selections
     setInvoiceSelectedIds([]);
+    
+    // Refresh data
     const allOrdersRes = await getOrders();
     setAllOrders(allOrdersRes.data);
     if (selectedDist) fetchOrders(selectedDist._id);
+    
+    // Show feedback
+    if (failedCount > 0) {
+      alert(`Deleted ${deletedCount} orders. Failed to delete ${failedCount} orders.`);
+    } else {
+      alert(`Successfully deleted ${deletedCount} order(s).`);
+    }
   };
 
   const toggleAllPaymentSummary = (checked) => {
@@ -348,54 +394,78 @@ function App() {
     buildPaymentSummaryPDF('Selected Payment Summary', selected);
   };
 
+  // FIXED: Delete selected payments from Payment Summary with proper filtering
   const deleteSelectedPaymentSummary = async () => {
-    if (paymentSummarySelectedIds.length === 0) return;
-    if (!window.confirm(`Delete ${paymentSummarySelectedIds.length} selected payment(s) from payment summary?`)) return;
-    for (const id of paymentSummarySelectedIds) {
-      await deletePayment(id);
+    if (paymentSummarySelectedIds.length === 0) {
+      alert('No payments selected to delete.');
+      return;
     }
+    
+    // Get the currently filtered payments to validate selections
+    const filteredPayments = getFilteredPayments();
+    const validSelectedIds = paymentSummarySelectedIds.filter(id => 
+      filteredPayments.some(p => p._id === id)
+    );
+    
+    if (validSelectedIds.length === 0) {
+      alert('No valid payments selected to delete. The selected payments may have already been deleted.');
+      return;
+    }
+    
+    if (!window.confirm(`Delete ${validSelectedIds.length} selected payment(s) from the current view?`)) return;
+    
+    let deletedCount = 0;
+    let failedCount = 0;
+    
+    for (const id of validSelectedIds) {
+      try {
+        await deletePayment(id);
+        deletedCount++;
+      } catch (err) {
+        console.error('Failed to delete payment:', id, err);
+        failedCount++;
+      }
+    }
+    
+    // Clear selections
     setPaymentSummarySelectedIds([]);
+    
+    // Refresh data
     const paymentsRes = await getPayments();
     setPayments(paymentsRes.data);
+    
+    // Show feedback
+    if (failedCount > 0) {
+      alert(`Deleted ${deletedCount} payments. Failed to delete ${failedCount} payments.`);
+    } else {
+      alert(`Successfully deleted ${deletedCount} payment(s).`);
+    }
   };
 
-  // NEW: Get filtered orders for Invoice Summary with month filter
   const getFilteredInvoiceOrders = () => {
     let orders = allOrders;
-    
-    // Apply distributor filter
     if (invoiceFilterDist !== 'all') {
       orders = orders.filter(o => {
         const distId = o.distributorId?._id || o.distributorId;
         return distId === invoiceFilterDist;
       });
     }
-    
-    // Apply month filter
     orders = filterOrdersByMonth(orders, invoiceMonthFilter);
-    
     return orders;
   };
 
-  // NEW: Get filtered payments for Payment Summary with month filter
   const getFilteredPayments = () => {
     let paymentsList = payments;
-    
-    // Apply distributor filter
     if (paymentFilterDist !== 'all') {
       paymentsList = paymentsList.filter(p => {
         const distId = p.distributorId?._id || p.distributorId;
         return distId === paymentFilterDist;
       });
     }
-    
-    // Apply month filter
     paymentsList = filterPaymentsByMonth(paymentsList, paymentMonthFilter);
-    
     return paymentsList;
   };
 
-  // NEW: Month filter dropdown component
   const MonthFilterDropdown = ({ value, onChange, orders, payments, label }) => {
     const availableMonths = getAvailableMonths(orders, payments);
     const monthNames = {
@@ -516,7 +586,6 @@ function App() {
     buildPaymentSummaryPDF(`Distributor Payment Summary - ${monthLabel}`, filteredPayments);
   };
 
-  // NEW: Helper to get month label
   const getMonthLabel = (monthValue) => {
     const monthNames = {
       '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'May', '06': 'Jun',
@@ -606,6 +675,8 @@ function App() {
     );
   }
 
+  // Main return with all views - keeping this section as is from the previous code
+  // The main changes are in the delete functions above
   return (
     <div style={{ fontFamily: 'sans-serif', display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
       <div style={{ background: '#3FA0E8', padding: '0 24px', height: 60, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
@@ -638,7 +709,7 @@ function App() {
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: 28, background: '#F0F8FE' }}>
-
+          {/* Dashboard View */}
           {view === 'dashboard' && (
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               <div style={{ flexShrink: 0 }}>
@@ -687,7 +758,7 @@ function App() {
             </div>
           )}
 
-          {/* ===== ALL PURCHASES ===== */}
+          {/* All Purchases View */}
           {view === 'allOrders' && (
             <div>
               <button onClick={() => setView('dashboard')} style={btnBack}>← Back</button>
@@ -731,7 +802,7 @@ function App() {
             </div>
           )}
 
-          {/* ===== INVOICE SUMMARY with Month Filter ===== */}
+          {/* Invoice Summary View */}
           {view === 'invoiceSummary' && (
             <div>
               <button onClick={() => setView('dashboard')} style={btnBack}>← Back</button>
@@ -846,7 +917,7 @@ function App() {
             </div>
           )}
 
-          {/* ===== DISTRIBUTOR PAYMENTS ===== */}
+          {/* Payments View */}
           {view === 'payments' && (
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               <div style={{ flexShrink: 0 }}>
@@ -898,7 +969,7 @@ function App() {
             </div>
           )}
 
-          {/* ===== PAYMENT SUMMARY with Month Filter ===== */}
+          {/* Payment Summary View */}
           {view === 'paymentSummary' && (
             <div>
               <button onClick={() => setView('dashboard')} style={btnBack}>← Back</button>
@@ -1011,7 +1082,7 @@ function App() {
             </div>
           )}
 
-          {/* ===== DISTRIBUTOR VIEW ===== */}
+          {/* Distributor View */}
           {view === 'distributor' && selectedDist && (
             <div>
               <button onClick={() => { setView('dashboard'); setSelectedDist(null); }} style={btnBack}>← Back</button>
