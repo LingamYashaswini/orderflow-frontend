@@ -35,6 +35,7 @@ function App() {
   const [paymentFilterDist, setPaymentFilterDist] = useState('all');
   const [invoiceMonthFilter, setInvoiceMonthFilter] = useState('all');
   const [paymentMonthFilter, setPaymentMonthFilter] = useState('all');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const ping = setInterval(() => {
@@ -336,28 +337,56 @@ function App() {
     buildInvoiceSummaryPDF('Selected Invoice Summary', selected);
   };
 
-  // FIXED: Delete selected orders from Invoice Summary with sequential deletion
+  // FIXED: Delete selected orders - get fresh data and validate IDs
   const deleteSelectedInvoiceOrders = async () => {
+    if (isDeleting) return;
+    
     if (invoiceSelectedIds.length === 0) {
       alert('No orders selected to delete.');
       return;
     }
+
+    // Get fresh order data from the API to ensure we have the latest
+    let freshOrders = [];
+    try {
+      const res = await getOrders();
+      freshOrders = res.data;
+    } catch (err) {
+      console.error('Failed to fetch fresh orders:', err);
+      alert('Failed to fetch the latest order data. Please refresh the page and try again.');
+      return;
+    }
+
+    // Get the IDs of orders that actually exist in the fresh data
+    const existingOrderIds = new Set(freshOrders.map(o => o._id));
     
-    // Get the currently selected IDs
-    const idsToDelete = [...invoiceSelectedIds];
+    // Filter selected IDs to only those that exist in the database
+    const validIds = invoiceSelectedIds.filter(id => existingOrderIds.has(id));
     
-    if (!window.confirm(`Delete ${idsToDelete.length} selected order(s)?`)) return;
+    if (validIds.length === 0) {
+      alert('None of the selected orders exist in the database. They may have been already deleted.');
+      setInvoiceSelectedIds([]);
+      return;
+    }
+
+    const invalidCount = invoiceSelectedIds.length - validIds.length;
+    let confirmMessage = `Delete ${validIds.length} selected order(s)?`;
+    if (invalidCount > 0) {
+      confirmMessage += `\n\n⚠️ ${invalidCount} selected order(s) no longer exist in the database and will be skipped.`;
+    }
     
+    if (!window.confirm(confirmMessage)) return;
+
+    setIsDeleting(true);
     let deletedCount = 0;
     let failedCount = 0;
     const failedIds = [];
-    
-    // Delete each order one by one
-    for (const id of idsToDelete) {
+
+    for (const id of validIds) {
       try {
         await deleteOrder(id);
         deletedCount++;
-        // Remove the deleted ID from selection
+        // Remove from selection as we go
         setInvoiceSelectedIds(prev => prev.filter(pid => pid !== id));
       } catch (err) {
         console.error('Failed to delete order:', id, err);
@@ -365,21 +394,31 @@ function App() {
         failedIds.push(id);
       }
     }
-    
-    // After all deletions, refresh the data
-    const allOrdersRes = await getOrders();
-    setAllOrders(allOrdersRes.data);
-    if (selectedDist) fetchOrders(selectedDist._id);
-    
+
     // Clear any remaining selections
     setInvoiceSelectedIds([]);
-    
-    // Show feedback
-    if (failedCount > 0) {
-      alert(`⚠️ Deleted ${deletedCount} orders.\n❌ Failed to delete ${failedCount} orders.\n\nFailed IDs: ${failedIds.join(', ')}`);
-    } else {
-      alert(`✅ Successfully deleted ${deletedCount} order(s).`);
+    setIsDeleting(false);
+
+    // Refresh data
+    try {
+      const allOrdersRes = await getOrders();
+      setAllOrders(allOrdersRes.data);
+      if (selectedDist) fetchOrders(selectedDist._id);
+    } catch (err) {
+      console.error('Failed to refresh data:', err);
     }
+
+    // Show feedback
+    let message = '';
+    if (failedCount > 0) {
+      message = `✅ Deleted ${deletedCount} orders.\n❌ Failed to delete ${failedCount} orders.\n\nFailed IDs: ${failedIds.join(', ')}`;
+    } else {
+      message = `✅ Successfully deleted ${deletedCount} order(s).`;
+    }
+    if (invalidCount > 0) {
+      message += `\n\n⚠️ ${invalidCount} selected order(s) were skipped because they no longer exist.`;
+    }
+    alert(message);
   };
 
   const toggleAllPaymentSummary = (checked) => {
@@ -393,28 +432,55 @@ function App() {
     buildPaymentSummaryPDF('Selected Payment Summary', selected);
   };
 
-  // FIXED: Delete selected payments from Payment Summary with sequential deletion
+  // FIXED: Delete selected payments - get fresh data and validate IDs
   const deleteSelectedPaymentSummary = async () => {
+    if (isDeleting) return;
+    
     if (paymentSummarySelectedIds.length === 0) {
       alert('No payments selected to delete.');
       return;
     }
+
+    // Get fresh payment data from the API to ensure we have the latest
+    let freshPayments = [];
+    try {
+      const res = await getPayments();
+      freshPayments = res.data;
+    } catch (err) {
+      console.error('Failed to fetch fresh payments:', err);
+      alert('Failed to fetch the latest payment data. Please refresh the page and try again.');
+      return;
+    }
+
+    // Get the IDs of payments that actually exist in the fresh data
+    const existingPaymentIds = new Set(freshPayments.map(p => p._id));
     
-    // Get the currently selected IDs
-    const idsToDelete = [...paymentSummarySelectedIds];
+    // Filter selected IDs to only those that exist in the database
+    const validIds = paymentSummarySelectedIds.filter(id => existingPaymentIds.has(id));
     
-    if (!window.confirm(`Delete ${idsToDelete.length} selected payment(s)?`)) return;
+    if (validIds.length === 0) {
+      alert('None of the selected payments exist in the database. They may have been already deleted.');
+      setPaymentSummarySelectedIds([]);
+      return;
+    }
+
+    const invalidCount = paymentSummarySelectedIds.length - validIds.length;
+    let confirmMessage = `Delete ${validIds.length} selected payment(s)?`;
+    if (invalidCount > 0) {
+      confirmMessage += `\n\n⚠️ ${invalidCount} selected payment(s) no longer exist in the database and will be skipped.`;
+    }
     
+    if (!window.confirm(confirmMessage)) return;
+
+    setIsDeleting(true);
     let deletedCount = 0;
     let failedCount = 0;
     const failedIds = [];
-    
-    // Delete each payment one by one
-    for (const id of idsToDelete) {
+
+    for (const id of validIds) {
       try {
         await deletePayment(id);
         deletedCount++;
-        // Remove the deleted ID from selection
         setPaymentSummarySelectedIds(prev => prev.filter(pid => pid !== id));
       } catch (err) {
         console.error('Failed to delete payment:', id, err);
@@ -422,20 +488,27 @@ function App() {
         failedIds.push(id);
       }
     }
-    
-    // After all deletions, refresh the data
-    const paymentsRes = await getPayments();
-    setPayments(paymentsRes.data);
-    
-    // Clear any remaining selections
+
     setPaymentSummarySelectedIds([]);
-    
-    // Show feedback
-    if (failedCount > 0) {
-      alert(`⚠️ Deleted ${deletedCount} payments.\n❌ Failed to delete ${failedCount} payments.\n\nFailed IDs: ${failedIds.join(', ')}`);
-    } else {
-      alert(`✅ Successfully deleted ${deletedCount} payment(s).`);
+    setIsDeleting(false);
+
+    try {
+      const paymentsRes = await getPayments();
+      setPayments(paymentsRes.data);
+    } catch (err) {
+      console.error('Failed to refresh data:', err);
     }
+
+    let message = '';
+    if (failedCount > 0) {
+      message = `✅ Deleted ${deletedCount} payments.\n❌ Failed to delete ${failedCount} payments.\n\nFailed IDs: ${failedIds.join(', ')}`;
+    } else {
+      message = `✅ Successfully deleted ${deletedCount} payment(s).`;
+    }
+    if (invalidCount > 0) {
+      message += `\n\n⚠️ ${invalidCount} selected payment(s) were skipped because they no longer exist.`;
+    }
+    alert(message);
   };
 
   const getFilteredInvoiceOrders = () => {
@@ -671,6 +744,7 @@ function App() {
     );
   }
 
+  // Main return - keeping this minimal to avoid duplication since the full component is above
   return (
     <div style={{ fontFamily: 'sans-serif', display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
       <div style={{ background: '#3FA0E8', padding: '0 24px', height: 60, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
